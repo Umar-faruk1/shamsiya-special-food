@@ -1,3 +1,4 @@
+.image-upload-area { display: flex; min-height: 205px; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; border: 1px dashed #d8c7b8; border-radius: 10px; background: #fcf8f3; }.image-upload-area:hover { border-color: #c57831; background: #faf1e7; }.image-upload-placeholder { display: grid; justify-items: center; gap: 8px; color: #a18f82; text-align: center; }.image-upload-placeholder svg { height: 28px; width: 28px; color: #c57831; }.image-upload-placeholder strong { color: #694736; font-size: 13px; }.image-upload-placeholder span { font-size: 10px; }.food-image-preview { height: 100%; width: 100%; object-fit: cover; }
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';

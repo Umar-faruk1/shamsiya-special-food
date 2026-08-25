@@ -5,6 +5,8 @@ import { Check, Edit3, FileText, Filter, ImagePlus, MoreHorizontal, Plus, Search
 import ShamsiyaDashboard from './shamsiya-dashboard'
 import { getCategories } from '@/lib/services/categories'
 import { createMenuItem, getMenuItems, updateMenuItem, type MenuItem } from '@/lib/services/menuItems'
+import { uploadFoodImage } from '@/lib/services/storage'
+
 
 type Category = { id: string; name: string; is_active: boolean }
 type Food = MenuItem & { categories?: { id: string; name: string } | null }
@@ -16,7 +18,25 @@ function FoodForm({ food, categories, onClose, onSaved }: { food?: Food; categor
   const [values, setValues] = useState<FoodFormValues>(food ? { name: food.name, category_id: food.category_id, description: food.description ?? '', price: String(food.price), ingredients: food.ingredients?.join(', ') ?? '', preparation_time: String(food.preparation_time ?? 15), calories: food.calories == null ? '' : String(food.calories), image_url: food.image_url ?? '', available: food.available, featured: food.featured } : emptyForm)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState(food?.image_url ?? '')
   const set = <K extends keyof FoodFormValues>(key: K, value: FoodFormValues[K]) => setValues(current => ({ ...current, [key]: value }))
+
+  function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file.')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image must be smaller than 5MB.')
+      return
+    }
+    setError('')
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+  }
 
   async function save() {
   if (!values.name.trim() || !values.category_id || !values.price) {
@@ -29,6 +49,7 @@ function FoodForm({ food, categories, onClose, onSaved }: { food?: Food; categor
   try {
     const ingredientsValue = values.ingredients.split(',').map(ingredient => ingredient.trim()).filter(Boolean)
 
+    const imageUrl = imageFile ? await uploadFoodImage(imageFile) : values.image_url.trim() || null
     const payload = {
       name: values.name.trim(),
       category_id: values.category_id,
@@ -39,10 +60,7 @@ function FoodForm({ food, categories, onClose, onSaved }: { food?: Food; categor
       calories: values.calories
         ? Number(values.calories)
         : null,
-      image_url:
-        typeof values.image_url === 'string'
-          ? values.image_url.trim() || null
-          : null,
+      image_url: imageUrl,
       available: values.available,
       featured: values.featured,
     }
@@ -64,7 +82,7 @@ function FoodForm({ food, categories, onClose, onSaved }: { food?: Food; categor
     setSaving(false)
   }
 }
-  return <div className="modal-layer" role="presentation" onClick={onClose}><div className="food-form-modal" role="dialog" aria-modal="true" aria-labelledby="food-form-title" onClick={event => event.stopPropagation()}><div className="drawer-heading"><div><span className="eyebrow">Food catalogue</span><h2 id="food-form-title">{food ? 'Edit food' : 'Add new food'}</h2></div><button className="icon-button" onClick={onClose} aria-label="Close form"><X /></button></div><div className="food-form-grid"><div><label className="field-label">Food name<input className="food-input" value={values.name} onChange={event => set('name', event.target.value)} placeholder="e.g. Mandi Chicken" /></label><label className="field-label">Category<select className="food-input" value={values.category_id} onChange={event => set('category_id', event.target.value)}><option value="">Select a category</option>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><div className="two-fields"><label className="field-label">Price<input className="food-input" type="number" min="0" step="0.01" value={values.price} onChange={event => set('price', event.target.value)} placeholder="0.00" /></label><label className="field-label">Prep time<input className="food-input" type="number" min="1" value={values.preparation_time} onChange={event => set('preparation_time', event.target.value)} /></label></div><label className="field-label">Description<textarea className="food-input" rows={4} value={values.description} onChange={event => set('description', event.target.value)} placeholder="Describe the dish..." /></label></div><div><label className="field-label">Image URL<input className="food-input" value={values.image_url} onChange={event => set('image_url', event.target.value)} placeholder="https://..." /></label><div className="image-drop"><ImagePlus /><strong>Food image</strong><span>Paste an image URL above</span></div><label className="field-label">Ingredients<textarea className="food-input" rows={3} value={values.ingredients} onChange={event => set('ingredients', event.target.value)} placeholder="Rice, chicken, spices..." /></label><label className="toggle-list"><span><strong>Available for ordering</strong><small>Customers can order this food</small></span><input type="checkbox" checked={values.available} onChange={event => set('available', event.target.checked)} /></label><label className="toggle-list"><span><strong>Featured item</strong><small>Show in featured collections</small></span><input type="checkbox" checked={values.featured} onChange={event => set('featured', event.target.checked)} /></label></div></div>{error && <p className="login-message" role="alert">{error}</p>}<div className="food-form-footer"><button className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={saving || !values.name.trim() || !values.category_id || !values.price} onClick={() => void save()}>{food ? <Check /> : <Plus />}{saving ? 'Saving...' : food ? 'Save changes' : 'Add food'}</button></div></div></div>
+  return <div className="modal-layer" role="presentation" onClick={onClose}><div className="food-form-modal" role="dialog" aria-modal="true" aria-labelledby="food-form-title" onClick={event => event.stopPropagation()}><div className="drawer-heading"><div><span className="eyebrow">Food catalogue</span><h2 id="food-form-title">{food ? 'Edit food' : 'Add new food'}</h2></div><button className="icon-button" onClick={onClose} aria-label="Close form"><X /></button></div><div className="food-form-grid"><div><label className="field-label">Food name<input className="food-input" value={values.name} onChange={event => set('name', event.target.value)} placeholder="e.g. Mandi Chicken" /></label><label className="field-label">Category<select className="food-input" value={values.category_id} onChange={event => set('category_id', event.target.value)}><option value="">Select a category</option>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><div className="two-fields"><label className="field-label">Price<input className="food-input" type="number" min="0" step="0.01" value={values.price} onChange={event => set('price', event.target.value)} placeholder="0.00" /></label><label className="field-label">Prep time<input className="food-input" type="number" min="1" value={values.preparation_time} onChange={event => set('preparation_time', event.target.value)} /></label></div><label className="field-label">Description<textarea className="food-input" rows={4} value={values.description} onChange={event => set('description', event.target.value)} placeholder="Describe the dish..." /></label></div><div><div className="field-label"><span>Food image</span><label className="image-upload-area" htmlFor="food-image">{imagePreview ? <img src={imagePreview} alt="Food preview" className="food-image-preview" /> : <div className="image-upload-placeholder"><ImagePlus /><strong>Upload food image</strong><span>PNG, JPG or WEBP · Maximum 5MB</span></div>}<input id="food-image" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleImageChange} hidden /></label>{imagePreview && <button type="button" className="secondary-button" onClick={() => { setImageFile(null); setImagePreview(''); set('image_url', '') }}>Change image</button>}</div><label className="field-label">Ingredients<textarea className="food-input" rows={3} value={values.ingredients} onChange={event => set('ingredients', event.target.value)} placeholder="Rice, chicken, spices..." /></label><label className="toggle-list"><span><strong>Available for ordering</strong><small>Customers can order this food</small></span><input type="checkbox" checked={values.available} onChange={event => set('available', event.target.checked)} /></label><label className="toggle-list"><span><strong>Featured item</strong><small>Show in featured collections</small></span><input type="checkbox" checked={values.featured} onChange={event => set('featured', event.target.checked)} /></label></div></div>{error && <p className="login-message" role="alert">{error}</p>}<div className="food-form-footer"><button className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={saving || !values.name.trim() || !values.category_id || !values.price} onClick={() => void save()}>{food ? <Check /> : <Plus />}{saving ? 'Saving...' : food ? 'Save changes' : 'Add food'}</button></div></div></div>
 }
 
 export function FoodsContent() {
