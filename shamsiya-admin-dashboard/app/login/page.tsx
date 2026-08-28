@@ -67,7 +67,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="login-form">
             <label htmlFor="email">Email address</label>
             <div className="login-input-wrap"><Mail aria-hidden="true" /><input id="email" type="email" autoComplete="email" placeholder="you@shamsiya.com" value={email} onChange={event => setEmail(event.target.value)} /></div>
-            <div className="login-label-row"><label htmlFor="password">Password</label><button type="button" className="login-link">Forgot password?</button></div>
+            <div className="login-label-row"><label htmlFor="password">Password</label></div>
             <div className="login-input-wrap"><LockKeyhole aria-hidden="true" /><input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Enter your password" value={password} onChange={event => setPassword(event.target.value)} /><button type="button" className="password-toggle" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}</button></div>
             <div className="login-options"><label className="remember-option"><input type="checkbox" /> <span>Remember me</span></label></div>
             <button type="submit" className="primary-button login-submit" disabled={loading}>{loading ? 'Signing in...' : 'Sign in'} {!loading && <ArrowRight aria-hidden="true" />}</button>

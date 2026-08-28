@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from "@/lib/supabase/client";
 
 export type MenuItem = {
   id: string;
@@ -20,15 +20,17 @@ export type MenuItem = {
 
 export async function getMenuItems() {
   const { data, error } = await supabase
-    .from('menu_items')
-    .select(`
+    .from("menu_items")
+    .select(
+      `
       *,
       categories (
         id,
         name
       )
-    `)
-    .order('created_at', {
+    `,
+    )
+    .order("created_at", {
       ascending: false,
     });
 
@@ -52,11 +54,11 @@ export async function createMenuItem(item: {
   featured?: boolean;
 }) {
   const { data, error } = await supabase
-    .from('menu_items')
+    .from("menu_items")
     .insert({
       name: item.name,
       category_id: item.category_id,
-      description: item.description ?? '',
+      description: item.description ?? "",
       price: item.price,
       ingredients: item.ingredients ?? [],
       preparation_time: item.preparation_time ?? 15,
@@ -65,19 +67,21 @@ export async function createMenuItem(item: {
       available: item.available ?? true,
       featured: item.featured ?? false,
     })
-    .select(`
+    .select(
+      `
       *,
       categories (
         id,
         name
       )
-    `)
+    `,
+    )
     .single();
 
   if (error) {
-    if (error.code === '42501') {
+    if (error.code === "42501") {
       throw new Error(
-        'You do not have permission to create menu items. Confirm that your profile is an active admin.'
+        "You do not have permission to create menu items. Confirm that your profile is an active admin.",
       );
     }
 
@@ -100,25 +104,27 @@ export async function updateMenuItem(
     image_url?: string | null;
     available?: boolean;
     featured?: boolean;
-  }
+  },
 ) {
   const { data, error } = await supabase
-    .from('menu_items')
+    .from("menu_items")
     .update(item)
-    .eq('id', id)
-    .select(`
+    .eq("id", id)
+    .select(
+      `
       *,
       categories (
         id,
         name
       )
-    `)
+    `,
+    )
     .maybeSingle();
 
   if (error) {
-    if (error.code === '42501') {
+    if (error.code === "42501") {
       throw new Error(
-        'You do not have permission to update menu items. Confirm that your profile is an active admin.'
+        "You do not have permission to update menu items. Confirm that your profile is an active admin.",
       );
     }
 
@@ -127,7 +133,7 @@ export async function updateMenuItem(
 
   if (!data) {
     throw new Error(
-      'Menu item was not updated. Confirm that the item exists and your admin account can access it.'
+      "Menu item was not updated. Confirm that the item exists and your admin account can access it.",
     );
   }
 
@@ -135,16 +141,11 @@ export async function updateMenuItem(
 }
 
 export async function deleteMenuItem(id: string) {
-  const { error } = await supabase
-    .from('menu_items')
-    .delete()
-    .eq('id', id);
+  const { error } = await supabase.from("menu_items").delete().eq("id", id);
 
   if (error) {
-    if (error.code === '42501') {
-      throw new Error(
-        'You do not have permission to delete menu items.'
-      );
+    if (error.code === "42501") {
+      throw new Error("You do not have permission to delete menu items.");
     }
 
     throw error;

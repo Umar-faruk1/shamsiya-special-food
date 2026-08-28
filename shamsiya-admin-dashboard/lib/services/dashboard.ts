@@ -1,33 +1,27 @@
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from "@/lib/supabase/client";
 
 export async function getDashboardStats() {
-  const [
-    ordersResult,
-    customersResult,
-    ridersResult,
-  ] = await Promise.all([
-    supabase
-      .from('orders')
-      .select('*', {
-        count: 'exact',
-        head: true,
-      }),
+  const [ordersResult, customersResult, ridersResult] = await Promise.all([
+    supabase.from("orders").select("*", {
+      count: "exact",
+      head: true,
+    }),
 
     supabase
-      .from('profiles')
-      .select('*', {
-        count: 'exact',
+      .from("profiles")
+      .select("*", {
+        count: "exact",
         head: true,
       })
-      .or('role.is.null,role.not.in.(admin,rider)'),
+      .or("role.is.null,role.not.in.(admin,rider)"),
 
     supabase
-      .from('profiles')
-      .select('*', {
-        count: 'exact',
+      .from("profiles")
+      .select("*", {
+        count: "exact",
         head: true,
       })
-      .eq('role', 'rider'),
+      .eq("role", "rider"),
   ]);
 
   if (ordersResult.error) {
@@ -54,12 +48,18 @@ type DashboardOrder = Record<string, unknown>;
 export async function getDashboardData() {
   const [ordersResult, customersResult, ridersResult] = await Promise.all([
     supabase
-      .from('orders')
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
+      .from("orders")
+      .select("*", { count: "exact" })
+      .order("created_at", { ascending: false })
       .limit(100),
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).or('role.is.null,role.not.in.(customer,rider)'),
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'rider'),
+    supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .or("role.is.null,role.not.in.(customer,rider)"),
+    supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("role", "rider"),
   ]);
 
   if (ordersResult.error) throw ordersResult.error;
