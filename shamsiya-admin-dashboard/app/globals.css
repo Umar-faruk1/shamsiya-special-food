@@ -4444,6 +4444,102 @@ td small {
 .rider-form-modal .confirm-modal-actions button {
   min-height: 40px;
 }
+.customer-form-modal {
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  border: 1px solid #e6d9cd;
+  border-radius: 16px;
+  background: #fffdfa;
+  padding: 27px;
+  box-shadow: 0 24px 70px #3e2b2140;
+  animation: drawer-in 0.22s ease-out;
+}
+.customer-form-modal .drawer-heading {
+  margin-bottom: 23px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #eee5dc;
+}
+.customer-form-modal .drawer-heading h2 {
+  margin: 5px 0 7px;
+  color: #4f372b;
+  font-size: 25px;
+}
+.customer-form-modal .customer-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 17px 15px;
+}
+.customer-form-modal label {
+  display: grid;
+  gap: 7px;
+  color: #745b4d;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.customer-form-modal label > span {
+  color: #a18f82;
+  font-size: 9px;
+  font-weight: 400;
+}
+.customer-form-modal input,
+.customer-form-modal select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #e2d7cd;
+  border-radius: 9px;
+  outline: 0;
+  background: #fff;
+  padding: 10px 12px;
+  color: #50382c;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.customer-form-modal input:focus,
+.customer-form-modal select:focus {
+  border-color: #c77c40;
+  box-shadow: 0 0 0 3px #c77c401c;
+}
+.customer-form-modal input[aria-invalid="true"] {
+  border-color: #c66b55;
+}
+.customer-form-modal .field-error {
+  color: #b35543;
+  font-size: 9px;
+  font-weight: 400;
+}
+.customer-form-modal .confirm-modal-actions {
+  margin-top: 25px;
+  padding-top: 18px;
+  border-top: 1px solid #eee5dc;
+}
+@media (max-width: 600px) {
+  .customer-form-modal {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+    padding: 20px 17px;
+    border-radius: 13px;
+  }
+  .customer-form-modal .customer-form-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .customer-form-modal .confirm-modal-actions {
+    position: sticky;
+    bottom: -20px;
+    margin-right: -17px;
+    margin-left: -17px;
+    padding: 15px 17px;
+    background: #fffdfa;
+  }
+  .customer-form-modal .confirm-modal-actions button {
+    flex: 1;
+    justify-content: center;
+  }
+}
 @media (max-width: 600px) {
   .rider-form-modal {
     width: calc(100vw - 24px);

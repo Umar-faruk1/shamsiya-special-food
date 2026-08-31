@@ -1,387 +1,571 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
-  ArrowUpRight,
-  Bell,
-  CalendarDays,
   Check,
-  ChevronDown,
-  ChevronLeft,
   ChevronRight,
   Clock3,
   CreditCard,
-  Crown,
-  Download,
-  Edit3,
+  Eye,
   Mail,
   MapPin,
   MoreHorizontal,
+  Plus,
   Phone,
+  RefreshCw,
   Search,
   ShoppingBag,
-  Star,
-  Tag,
   UserRound,
   Users,
   X,
 } from "lucide-react";
+import {
+  createCustomer,
+  getCustomer,
+  getCustomerAddresses,
+  getCustomerOrders,
+  getCustomers,
+  getCustomerListStats,
+  getCustomerStats,
+  updateCustomerStatus,
+  type Customer,
+  type CustomerAddress,
+  type CustomerOrder,
+  type CustomerListStats,
+  type CustomerStats,
+} from "@/lib/services/customers";
 
-const customers = [
-  [
-    "CS-0041",
-    "Ama Boateng",
-    "ama.boateng@gmail.com",
-    "+233 24 555 0192",
-    "Accra",
-    "₵2,480",
-    "18",
-    "Aug 20, 2025",
-    "Gold",
-    "Active",
-    "AB",
-  ],
-  [
-    "CS-0042",
-    "Kojo Mensah",
-    "kojo.mensah@gmail.com",
-    "+233 20 672 4421",
-    "East Legon",
-    "₵1,920",
-    "14",
-    "Aug 19, 2025",
-    "Silver",
-    "Active",
-    "KM",
-  ],
-  [
-    "CS-0043",
-    "Nana Owusu",
-    "nana.owusu@gmail.com",
-    "+233 55 382 1006",
-    "Osu",
-    "₵3,840",
-    "26",
-    "Aug 18, 2025",
-    "Platinum",
-    "Active",
-    "NO",
-  ],
-  [
-    "CS-0044",
-    "Efua Addo",
-    "efua.addo@gmail.com",
-    "+233 27 889 2217",
-    "Cantonments",
-    "₵680",
-    "5",
-    "Aug 18, 2025",
-    "Bronze",
-    "Active",
-    "EA",
-  ],
-  [
-    "CS-0045",
-    "Yaw Asare",
-    "yaw.asare@gmail.com",
-    "+233 50 194 7330",
-    "Labone",
-    "₵2,115",
-    "16",
-    "Aug 17, 2025",
-    "Gold",
-    "Active",
-    "YA",
-  ],
-  [
-    "CS-0046",
-    "Abena Osei",
-    "abena.osei@gmail.com",
-    "+233 24 107 6684",
-    "Spintex",
-    "₵1,240",
-    "9",
-    "Aug 16, 2025",
-    "Silver",
-    "Inactive",
-    "AO",
-  ],
-  [
-    "CS-0047",
-    "Kwame Asante",
-    "kwame.asante@gmail.com",
-    "+233 54 736 1120",
-    "Airport Hills",
-    "₵4,620",
-    "32",
-    "Aug 15, 2025",
-    "Platinum",
-    "Active",
-    "KA",
-  ],
-  [
-    "CS-0048",
-    "Mavis Tetteh",
-    "mavis.tetteh@gmail.com",
-    "+233 26 441 9082",
-    "Dansoman",
-    "₵940",
-    "7",
-    "Aug 14, 2025",
-    "Bronze",
-    "Active",
-    "MT",
-  ],
-] as const;
-
-const orders = [
-  ["#SH-10245", "Mandi Chicken", "₵85.00", "Preparing", "Today, 10:24 AM"],
-  ["#SH-10182", "Jollof Rice, Suya", "₵112.00", "Delivered", "Aug 18, 7:12 PM"],
-  ["#SH-10131", "Waakye Special", "₵62.00", "Delivered", "Aug 12, 12:08 PM"],
-  ["#SH-10094", "Chicken Fried Rice", "₵74.50", "Delivered", "Aug 07, 6:40 PM"],
-];
-const favorites = [
-  ["Mandi Chicken", "Rice dishes", "₵95", "4.9", "🍗"],
-  ["Jollof Rice", "Rice dishes", "₵75", "4.8", "🍚"],
-  ["Suya Pepper", "Grills", "₵75", "4.9", "🥩"],
-];
+const money = (value: number) =>
+  `GHS ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const readable = (value: string | null | undefined) =>
+  value?.trim() || "Not available";
+const statusLabel = (value: string | null | undefined) =>
+  readable(value)
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+const statusClass = (value: string | null | undefined) =>
+  value === "active"
+    ? "status-success"
+    : value === "blocked"
+      ? "status-pending"
+      : "status-neutral";
 
 function Avatar({
-  initials,
+  customer,
   large = false,
 }: {
-  initials: string;
+  customer: Customer;
   large?: boolean;
 }) {
-  return <div className={`avatar ${large ? "avatar-xl" : ""}`}>{initials}</div>;
-}
-function toastMessage(setToast: (v: string) => void, message: string) {
-  setToast(message);
-  setTimeout(() => setToast(""), 2000);
-}
-function CustomerList({ onSelect }: { onSelect: (id: string) => void }) {
-  const [query, setQuery] = useState("");
-  const [segment, setSegment] = useState("All segments");
-  const [status, setStatus] = useState("All status");
-  const [toast, setToast] = useState("");
-  const filtered = useMemo(
-    () =>
-      customers.filter(
-        (c) =>
-          `${c[1]} ${c[2]} ${c[4]}`
-            .toLowerCase()
-            .includes(query.toLowerCase()) &&
-          (segment === "All segments" || c[8] === segment) &&
-          (status === "All status" || c[9] === status),
-      ),
-    [query, segment, status],
+  const name = readable(customer.full_name);
+  return customer.avatar_url ? (
+    <img
+      className={`avatar ${large ? "avatar-lg" : ""}`}
+      src={customer.avatar_url}
+      alt={name}
+    />
+  ) : (
+    <div className={`avatar rider-avatar ${large ? "avatar-lg" : ""}`}>
+      {name === "Not available" ? "C" : name.slice(0, 2).toUpperCase()}
+    </div>
   );
+}
+function CustomerStatus({ value }: { value: string | null }) {
+  return (
+    <span className={`status-badge ${statusClass(value)}`}>
+      <span />
+      {statusLabel(value)}
+    </span>
+  );
+}
+function errorText(error: unknown, fallback: string) {
+  if (
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    error.code === "42501"
+  )
+    return "You do not have permission to manage customers.";
+  return error instanceof Error ? error.message : fallback;
+}
+
+function ConfirmStatus({
+  customer,
+  nextStatus,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  customer: Customer;
+  nextStatus: string;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="modal-layer" onClick={onCancel}>
+      <div
+        className="confirm-modal"
+        role="dialog"
+        aria-modal="true"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="confirm-modal-head">
+          <Users />
+          <h3>
+            {nextStatus === "active"
+              ? "Activate customer?"
+              : "Deactivate customer?"}
+          </h3>
+        </div>
+        <p className="modal-copy">
+          {readable(customer.full_name)} will{" "}
+          {nextStatus === "active"
+            ? "be able to use their customer account again."
+            : "no longer be able to use their customer account."}
+        </p>
+        <div className="confirm-modal-actions">
+          <button
+            className="secondary-button"
+            onClick={onCancel}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+          <button
+            className="primary-button"
+            onClick={onConfirm}
+            disabled={busy}
+          >
+            {busy
+              ? "Updating..."
+              : nextStatus === "active"
+                ? "Activate"
+                : "Deactivate"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Stats({
+  customers,
+  loading,
+}: {
+  customers: Customer[];
+  loading: boolean;
+}) {
+  const newCustomers = customers.filter(
+    (customer) =>
+      Date.now() - new Date(customer.created_at).getTime() <=
+      30 * 24 * 60 * 60 * 1000,
+  ).length;
+  const cards = [
+    [Users, "Total Customers", customers.length],
+    [
+      Check,
+      "Active Customers",
+      customers.filter((customer) => customer.status === "active").length,
+    ],
+    [
+      Clock3,
+      "Inactive Customers",
+      customers.filter((customer) => customer.status !== "active").length,
+    ],
+    [UserRound, "New Customers", newCustomers],
+  ] as const;
+  return (
+    <section className="stats-grid customer-stats">
+      {cards.map(([Icon, title, value]) => (
+        <article className="stat-card" key={title}>
+          <div className="stat-head">
+            <span>{title}</span>
+            <div className="stat-icon">
+              <Icon />
+            </div>
+          </div>
+          <div className="stat-value">{loading ? "..." : value}</div>
+          <div className="stat-foot">
+            <span>Live</span>
+            <span>from database</span>
+          </div>
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function AddCustomerModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: () => Promise<void>;
+}) {
+  const [values, setValues] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+    status: "active",
+  });
+  const [errors, setErrors] = useState<{
+    full_name?: string;
+    email?: string;
+    phone?: string;
+  }>({});
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  function change(key: keyof typeof values, value: string) {
+    setValues((current) => ({ ...current, [key]: value }));
+    setErrors((current) => ({ ...current, [key]: undefined }));
+  }
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    const fullName = values.full_name.trim();
+    const email = values.email.trim().toLowerCase();
+    const phone = values.phone.trim();
+    const nextErrors: typeof errors = {};
+    if (fullName.length < 2)
+      nextErrors.full_name = "Enter at least 2 characters.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      nextErrors.email = "Enter a valid email address.";
+    if (!phone) nextErrors.phone = "Phone number is required.";
+    if (Object.keys(nextErrors).length) {
+      setErrors(nextErrors);
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await createCustomer({ ...values, full_name: fullName, email, phone });
+      await onCreated();
+      onClose();
+    } catch (reason) {
+      setError(
+        reason instanceof Error && reason.message.includes("already exists")
+          ? "A customer account with this email already exists."
+          : reason instanceof Error
+            ? reason.message
+            : "Unable to create customer account.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="modal-layer" onClick={onClose}>
+      <form
+        className="assign-modal customer-form-modal"
+        role="dialog"
+        aria-modal="true"
+        onClick={(event) => event.stopPropagation()}
+        onSubmit={submit}
+      >
+        <div className="drawer-heading">
+          <div>
+            <span className="eyebrow">Customer management</span>
+            <h2>Add Customer</h2>
+            <p className="modal-copy">
+              Create a new customer account for Shamsiya Special Food.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Close"
+            onClick={onClose}
+          >
+            <X />
+          </button>
+        </div>
+        <div className="customer-form-grid">
+          <label>
+            Full name
+            <input
+              autoFocus
+              value={values.full_name}
+              onChange={(event) => change("full_name", event.target.value)}
+              aria-invalid={!!errors.full_name}
+              placeholder="e.g. Ama Boateng"
+            />
+            {errors.full_name && (
+              <small className="field-error">{errors.full_name}</small>
+            )}
+          </label>
+          <label>
+            Email
+            <input
+              type="email"
+              value={values.email}
+              onChange={(event) => change("email", event.target.value)}
+              aria-invalid={!!errors.email}
+              placeholder="customer@example.com"
+            />
+            {errors.email && (
+              <small className="field-error">{errors.email}</small>
+            )}
+          </label>
+          <label>
+            Phone number
+            <input
+              required
+              value={values.phone}
+              onChange={(event) => change("phone", event.target.value)}
+              aria-invalid={!!errors.phone}
+              placeholder="024 000 0000"
+            />
+            {errors.phone && (
+              <small className="field-error">{errors.phone}</small>
+            )}
+          </label>
+          <label>
+            Status
+            <select
+              value={values.status}
+              onChange={(event) => change("status", event.target.value)}
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+        </div>
+        {error && (
+          <p className="login-message" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="confirm-modal-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onClose}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+          <button type="submit" className="primary-button" disabled={busy}>
+            {busy ? (
+              "Creating customer..."
+            ) : (
+              <>
+                <Plus /> Create Customer
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function CustomerList({ onSelect }: { onSelect: (id: string) => void }) {
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [listStats, setListStats] = useState<CustomerListStats>({});
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState("");
+  const [addCustomerOpen, setAddCustomerOpen] = useState(false);
+  const load = async (refresh = false) => {
+    console.log("[customers page] load: started", { refresh });
+    refresh ? setRefreshing(true) : setLoading(true);
+    setError("");
+    try {
+      const nextCustomers = await getCustomers();
+      console.log("[customers page] customers loaded", {
+        count: nextCustomers.length,
+        customers: nextCustomers,
+      });
+      setCustomers(nextCustomers);
+      setListStats(
+        await getCustomerListStats(
+          nextCustomers.map((customer) => customer.id),
+        ),
+      );
+    } catch (reason) {
+      console.error("[customers page] load: failed", reason);
+      setError(errorText(reason, "Unable to load customers."));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+  useEffect(() => {
+    void load();
+  }, []);
+  const statusValues = Array.from(
+    new Set(
+      customers
+        .map((customer) => customer.status)
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+  const filtered = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    const result = customers.filter(
+      (customer) =>
+        (!term ||
+          [customer.full_name, customer.email, customer.phone]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+            .includes(term)) &&
+        (status === "all" || customer.status === status),
+    );
+    console.log("[customers page] filtered customers", {
+      total: customers.length,
+      visible: result.length,
+      filters: { query, status },
+    });
+    return result;
+  }, [customers, query, status]);
+  function notify(message: string) {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 2500);
+  }
   return (
     <main className="main-content customers-main">
       <div className="page-heading">
         <div>
           <div className="eyebrow">
-            <span className="live-dot" /> Customer relationship management
+            <span className="live-dot" /> Customer management
           </div>
           <h1>Customers</h1>
-          <p>Build stronger relationships with the people who love Shamsiya.</p>
+          <p>Manage registered customers, accounts and customer activity.</p>
         </div>
         <div className="heading-actions">
           <button
-            className="secondary-button"
-            onClick={() => toastMessage(setToast, "Customer report exported")}
+            className="primary-button"
+            onClick={() => setAddCustomerOpen(true)}
           >
-            <Download /> Export report
+            <Plus /> Add Customer
+          </button>
+          <button
+            className="secondary-button"
+            onClick={() => void load(true)}
+            disabled={refreshing}
+          >
+            <RefreshCw /> {refreshing ? "Refreshing..." : "Refresh"}
           </button>
         </div>
       </div>
-      <section className="stats-grid customer-stats">
-        <article className="stat-card">
-          <div className="stat-head">
-            <span>Total Customers</span>
-            <div className="stat-icon">
-              <Users />
-            </div>
-          </div>
-          <div className="stat-value">3,842</div>
-          <div className="stat-foot">
-            <span className="trend-up">
-              <ArrowUpRight />
-              14.6%
-            </span>
-            <span>vs last month</span>
-          </div>
-        </article>
-        <article className="stat-card">
-          <div className="stat-head">
-            <span>New This Month</span>
-            <div className="stat-icon">
-              <UserRound />
-            </div>
-          </div>
-          <div className="stat-value">286</div>
-          <div className="stat-foot">
-            <span className="trend-up">
-              <ArrowUpRight />
-              18.2%
-            </span>
-            <span>vs last month</span>
-          </div>
-        </article>
-        <article className="stat-card">
-          <div className="stat-head">
-            <span>Repeat Customers</span>
-            <div className="stat-icon">
-              <Crown />
-            </div>
-          </div>
-          <div className="stat-value">68.4%</div>
-          <div className="stat-foot">
-            <span className="trend-up">
-              <ArrowUpRight />
-              5.8%
-            </span>
-            <span>repeat rate</span>
-          </div>
-        </article>
-        <article className="stat-card">
-          <div className="stat-head">
-            <span>Customer LTV</span>
-            <div className="stat-icon">
-              <CreditCard />
-            </div>
-          </div>
-          <div className="stat-value">₵1,248</div>
-          <div className="stat-foot">
-            <span className="trend-up">
-              <ArrowUpRight />
-              9.4%
-            </span>
-            <span>average lifetime</span>
-          </div>
-        </article>
-      </section>
+      <Stats customers={customers} loading={loading} />
+      {error && (
+        <div className="login-message" role="alert">
+          {error}{" "}
+          <button className="text-button" onClick={() => void load()}>
+            Retry
+          </button>
+        </div>
+      )}
       <section className="panel customer-table-panel">
         <div className="customers-toolbar">
-          <label className="customers-search">
+          <div className="customers-search">
             <Search />
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by name, email or location..."
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search customers..."
+              aria-label="Search customers"
             />
-          </label>
+          </div>
           <div className="customers-filters">
             <select
-              value={segment}
-              onChange={(e) => setSegment(e.target.value)}
-              aria-label="Customer segment"
-            >
-              <option>All segments</option>
-              <option>Bronze</option>
-              <option>Silver</option>
-              <option>Gold</option>
-              <option>Platinum</option>
-            </select>
-            <select
               value={status}
-              onChange={(e) => setStatus(e.target.value)}
+              onChange={(event) => setStatus(event.target.value)}
               aria-label="Customer status"
             >
-              <option>All status</option>
-              <option>Active</option>
-              <option>Inactive</option>
-            </select>
-            <button
-              className="secondary-button"
-              onClick={() => toastMessage(setToast, "Filters applied")}
-            >
-              <Tag /> Filters
-            </button>
-          </div>
-        </div>
-        <div className="customers-table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Customer</th>
-                <th>Location</th>
-                <th>Total spent</th>
-                <th>Orders</th>
-                <th>Last order</th>
-                <th>Segment</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((c) => (
-                <tr key={c[0]}>
-                  <td>
-                    <button
-                      className="customer-name-link"
-                      onClick={() => onSelect(c[0])}
-                    >
-                      <Avatar initials={c[10]} />
-                      <span>
-                        <strong>{c[1]}</strong>
-                        <small>{c[2]}</small>
-                      </span>
-                    </button>
-                  </td>
-                  <td>{c[4]}</td>
-                  <td>
-                    <strong>{c[5]}</strong>
-                  </td>
-                  <td>{c[6]}</td>
-                  <td>{c[7]}</td>
-                  <td>
-                    <span
-                      className={`segment-badge segment-${c[8].toLowerCase()}`}
-                    >
-                      {c[8]}
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      className={`status-badge ${c[9] === "Active" ? "status-success" : "status-neutral"}`}
-                    >
-                      <span />
-                      {c[9]}
-                    </span>
-                  </td>
-                  <td>
-                    <button className="icon-button">
-                      <MoreHorizontal />
-                    </button>
-                  </td>
-                </tr>
+              <option value="all">All status</option>
+              {statusValues.map((value) => (
+                <option key={value} value={value}>
+                  {statusLabel(value)}
+                </option>
               ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <div className="empty-customers">
-              <Search />
-              <strong>No customers found</strong>
-              <span>Try a different name, location, or segment.</span>
-            </div>
-          )}
-        </div>
-        <div className="panel-footer">
-          <span>
-            Showing {filtered.length} of {customers.length} customers
-          </span>
-          <div className="pagination">
-            <button className="icon-button">
-              <ChevronLeft />
-            </button>
-            <b>1</b>
-            <button className="icon-button">
-              <ChevronRight />
-            </button>
+            </select>
           </div>
         </div>
+        {loading ? (
+          <div className="auth-checking">
+            <p>Loading customers...</p>
+          </div>
+        ) : (
+          <div className="customers-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Orders</th>
+                  <th>Total Spent</th>
+                  <th>Status</th>
+                  <th>Joined</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((customer) => (
+                  <tr key={customer.id}>
+                    <td>
+                      <button
+                        className="customer-name-link"
+                        onClick={() => onSelect(customer.id)}
+                      >
+                        <Avatar customer={customer} />
+                        <span>
+                          <strong>{readable(customer.full_name)}</strong>
+                        </span>
+                      </button>
+                    </td>
+                    <td>{readable(customer.email)}</td>
+                    <td>{readable(customer.phone)}</td>
+                    <td>{listStats[customer.id]?.totalOrders ?? 0}</td>
+                    <td>{money(listStats[customer.id]?.totalSpent ?? 0)}</td>
+                    <td>
+                      <CustomerStatus value={customer.status} />
+                    </td>
+                    <td>
+                      {new Date(customer.created_at).toLocaleDateString()}
+                    </td>
+                    <td>
+                      <button
+                        className="icon-button"
+                        aria-label={`View ${readable(customer.full_name)}`}
+                        onClick={() => onSelect(customer.id)}
+                      >
+                        <Eye />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!filtered.length && (
+              <div className="empty-customers">
+                <Search />
+                <strong>
+                  {customers.length
+                    ? "No customers match your search."
+                    : "No customers found"}
+                </strong>
+                <span>
+                  {customers.length
+                    ? "Try a different name, email or phone number."
+                    : "No customer accounts are available."}
+                </span>
+              </div>
+            )}
+            <div className="panel-footer">
+              <span>
+                Showing {filtered.length} of {customers.length} customers
+              </span>
+            </div>
+          </div>
+        )}
       </section>
       {toast && (
         <div className="toast-message">
@@ -389,62 +573,122 @@ function CustomerList({ onSelect }: { onSelect: (id: string) => void }) {
           {toast}
         </div>
       )}
+      {addCustomerOpen && (
+        <AddCustomerModal
+          onClose={() => setAddCustomerOpen(false)}
+          onCreated={async () => {
+            await load(true);
+            notify("Customer created successfully.");
+          }}
+        />
+      )}
     </main>
   );
 }
+
 function CustomerProfile({ id, onBack }: { id: string; onBack: () => void }) {
-  const customer = customers.find((c) => c[0] === id) || customers[0];
-  const [tab, setTab] = useState("Overview");
-  const [suspended, setSuspended] = useState(customer[9] === "Inactive");
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [orders, setOrders] = useState<CustomerOrder[]>([]);
+  const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
+  const [stats, setStats] = useState<CustomerStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [confirm, setConfirm] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState("");
-  const tabs = ["Overview", "Orders", "Favorites", "Reviews", "Activity"];
+  useEffect(() => {
+    Promise.all([
+      getCustomer(id),
+      getCustomerOrders(id),
+      getCustomerAddresses(id),
+      getCustomerStats(id),
+    ])
+      .then(([profile, customerOrders, customerAddresses, customerStats]) => {
+        setCustomer(profile);
+        setOrders(customerOrders);
+        setAddresses(customerAddresses);
+        setStats(customerStats);
+      })
+      .catch((reason) =>
+        setError(errorText(reason, "Unable to load customer details.")),
+      )
+      .finally(() => setLoading(false));
+  }, [id]);
+  if (loading)
+    return (
+      <main className="main-content">
+        <div className="auth-checking">
+          <p>Loading customer details...</p>
+        </div>
+      </main>
+    );
+  if (!customer)
+    return (
+      <main className="main-content">
+        <div className="panel empty-state">
+          <p>{error || "Customer not found."}</p>
+          <button className="secondary-button" onClick={onBack}>
+            Back to customers
+          </button>
+        </div>
+      </main>
+    );
+  const notify = (message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 2500);
+  };
+  async function changeStatus() {
+    if (!confirm) return;
+    if (!customer) return;
+    const currentCustomer = customer;
+    setBusy(true);
+    try {
+      await updateCustomerStatus(currentCustomer.id, confirm);
+      setCustomer({ ...currentCustomer, status: confirm });
+      notify("Customer status updated successfully.");
+      setConfirm(null);
+    } catch (reason) {
+      setError(errorText(reason, "Unable to update customer status."));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <main className="main-content customer-profile-main">
       <div className="profile-back">
         <button className="text-button" onClick={onBack}>
           <ArrowLeft /> Back to customers
         </button>
-        <span>Customers / {customer[1]}</span>
+        <span>Customers / {readable(customer.full_name)}</span>
       </div>
       <section className="panel customer-profile-hero">
         <div className="profile-hero-main">
-          <Avatar initials={customer[10]} large />
+          <Avatar customer={customer} large />
           <div>
             <div className="profile-title-line">
-              <h1>{customer[1]}</h1>
-              <span
-                className={`status-badge ${suspended ? "status-neutral" : "status-success"}`}
-              >
-                <span />
-                {suspended ? "Inactive" : "Active"}
-              </span>
+              <h1>{readable(customer.full_name)}</h1>
+              <CustomerStatus value={customer.status} />
             </div>
-            <p>{customer[2]}</p>
+            <p>{readable(customer.email)}</p>
             <div className="profile-contact">
               <span>
-                <MapPin /> {customer[4]}, Ghana
+                <Phone /> {readable(customer.phone)}
               </span>
               <span>
-                <CalendarDays /> Joined March 12, 2024
+                <Clock3 /> Joined{" "}
+                {new Date(customer.created_at).toLocaleDateString()}
               </span>
             </div>
           </div>
         </div>
         <div className="profile-hero-actions">
           <button
-            className="secondary-button"
-            onClick={() => toastMessage(setToast, "Notification sent")}
+            className={`secondary-button ${customer.status === "active" ? "suspend-action" : "activate-action"}`}
+            onClick={() =>
+              setConfirm(customer.status === "active" ? "inactive" : "active")
+            }
           >
-            <Bell /> Notify
-          </button>
-          <button
-            className="secondary-button"
-            onClick={() => toastMessage(setToast, "Edit mode opened")}
-          >
-            <Edit3 /> Edit profile
-          </button>
-          <button className="icon-button">
-            <MoreHorizontal />
+            <Users /> {customer.status === "active" ? "Deactivate" : "Activate"}
           </button>
         </div>
       </section>
@@ -452,277 +696,128 @@ function CustomerProfile({ id, onBack }: { id: string; onBack: () => void }) {
         <div>
           <ShoppingBag />
           <span>Total orders</span>
-          <strong>{customer[6]}</strong>
-          <small>+3 this month</small>
+          <strong>{stats?.totalOrders ?? 0}</strong>
+        </div>
+        <div>
+          <Check />
+          <span>Completed orders</span>
+          <strong>{stats?.completedOrders ?? 0}</strong>
+        </div>
+        <div>
+          <X />
+          <span>Cancelled orders</span>
+          <strong>{stats?.cancelledOrders ?? 0}</strong>
         </div>
         <div>
           <CreditCard />
           <span>Total spent</span>
-          <strong>{customer[5]}</strong>
-          <small>₵155 average order</small>
-        </div>
-        <div>
-          <Crown />
-          <span>Customer segment</span>
-          <strong>{customer[8]}</strong>
-          <small>Top 12% of customers</small>
-        </div>
-        <div>
-          <Star />
-          <span>Average rating</span>
-          <strong>4.9</strong>
-          <small>6 reviews given</small>
+          <strong>{money(stats?.totalSpent ?? 0)}</strong>
         </div>
       </section>
       <div className="profile-layout">
         <section className="panel profile-content">
-          <div className="profile-tabs">
-            {tabs.map((item) => (
-              <button
-                className={tab === item ? "profile-tab-active" : ""}
-                key={item}
-                onClick={() => setTab(item)}
-              >
-                {item}
-                {item === "Orders" && <b>18</b>}
-              </button>
-            ))}
-          </div>
-          {tab === "Overview" && (
-            <div className="profile-overview">
-              <div className="profile-columns">
-                <div>
-                  <div className="profile-section-heading">
-                    <h2>Customer information</h2>
-                    <button className="text-button">Edit</button>
-                  </div>
-                  <div className="info-list">
-                    <p>
-                      <Mail />{" "}
-                      <span>
-                        <small>Email address</small>
-                        {customer[2]}
-                      </span>
-                    </p>
-                    <p>
-                      <Phone />{" "}
-                      <span>
-                        <small>Phone number</small>
-                        {customer[3]}
-                      </span>
-                    </p>
-                    <p>
-                      <MapPin />{" "}
-                      <span>
-                        <small>Delivery address</small>House 18, Oxford Street
-                        <br />
-                        {customer[4]}, Accra
-                      </span>
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <div className="profile-section-heading">
-                    <h2>Favorite foods</h2>
-                    <button
-                      className="text-button"
-                      onClick={() => setTab("Favorites")}
-                    >
-                      View all
-                    </button>
-                  </div>
-                  <div className="favorite-mini-list">
-                    {favorites.map((f) => (
-                      <div key={f[0]}>
-                        <span className="food-emoji">{f[4]}</span>
-                        <span>
-                          <strong>{f[0]}</strong>
-                          <small>{f[1]}</small>
-                        </span>
-                        <b>
-                          {f[3]} <Star />
-                        </b>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="profile-section-heading recent-heading">
-                <h2>Recent orders</h2>
-                <button
-                  className="text-button"
-                  onClick={() => setTab("Orders")}
-                >
-                  View all orders
-                </button>
-              </div>
-              <div className="mini-orders">
-                {orders.slice(0, 3).map((order) => (
-                  <div key={order[0]}>
-                    <span>
-                      <strong>{order[0]}</strong>
-                      <small>
-                        {order[1]} · {order[4]}
-                      </small>
-                    </span>
-                    <b>{order[2]}</b>
-                    <span
-                      className={`status-badge ${order[3] === "Delivered" ? "status-success" : "status-info"}`}
-                    >
-                      <span />
-                      {order[3]}
-                    </span>
-                  </div>
-                ))}
-              </div>
+          <div className="profile-overview">
+            <h2 className="profile-subheading">Customer information</h2>
+            <div className="info-list">
+              <p>
+                <Mail />
+                <span>
+                  <small>Email address</small>
+                  {readable(customer.email)}
+                </span>
+              </p>
+              <p>
+                <Phone />
+                <span>
+                  <small>Phone number</small>
+                  {readable(customer.phone)}
+                </span>
+              </p>
+              <p>
+                <Clock3 />
+                <span>
+                  <small>Last updated</small>
+                  {new Date(customer.updated_at).toLocaleString()}
+                </span>
+              </p>
             </div>
-          )}
-          {tab === "Orders" && (
-            <div className="profile-tab-content">
-              <h2>Order history</h2>
-              {orders.map((order) => (
-                <div className="profile-order-row" key={order[0]}>
+            <h2 className="profile-subheading recent-heading">Order history</h2>
+            {orders.length ? (
+              orders.map((order) => (
+                <div className="profile-order-row" key={order.id}>
                   <span>
-                    <strong>{order[0]}</strong>
+                    <strong>#{order.order_number}</strong>
+                    <small>{new Date(order.created_at).toLocaleString()}</small>
+                  </span>
+                  <b>{money(Number(order.total))}</b>
+                  <span
+                    className={`status-badge ${order.status === "delivered" ? "status-success" : "status-neutral"}`}
+                  >
+                    <span />
+                    {statusLabel(order.status)}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="drawer-note">No orders found.</p>
+            )}
+            <h2 className="profile-subheading recent-heading">
+              Saved addresses
+            </h2>
+            {addresses.length ? (
+              addresses.map((address, index) => (
+                <div
+                  className="profile-order-row"
+                  key={String(address.id ?? index)}
+                >
+                  <span>
+                    <strong>{readable(address.label)}</strong>
                     <small>
-                      {order[1]} · {order[4]}
+                      {readable(address.address)}
+                      {address.city ? `, ${address.city}` : ""}
                     </small>
                   </span>
-                  <b>{order[2]}</b>
-                  <span className="status-badge status-success">
-                    <span />
-                    {order[3]}
-                  </span>
+                  <small>
+                    {address.is_default || address.default
+                      ? "Default address"
+                      : ""}
+                  </small>
                 </div>
-              ))}
-            </div>
-          )}
-          {tab === "Favorites" && (
-            <div className="profile-tab-content">
-              <h2>Favorite foods</h2>
-              <div className="profile-favorite-grid">
-                {favorites.map((f) => (
-                  <div className="profile-favorite-card" key={f[0]}>
-                    <span>{f[4]}</span>
-                    <strong>{f[0]}</strong>
-                    <small>{f[1]}</small>
-                    <b>
-                      {f[2]} · {f[3]} <Star />
-                    </b>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {tab === "Reviews" && (
-            <div className="profile-tab-content">
-              <h2>Reviews from {customer[1].split(" ")[0]}</h2>
-              <div className="review-card">
-                <div className="review-stars">★★★★★</div>
-                <p>
-                  “The Mandi Chicken is always delicious and delivery is
-                  incredibly reliable.”
-                </p>
-                <small>Shared 8 days ago · Order #SH-10094</small>
-              </div>
-              <div className="review-card">
-                <div className="review-stars">★★★★★</div>
-                <p>“My family&apos;s favorite weekend dinner.”</p>
-                <small>Shared 21 days ago · Order #SH-10052</small>
-              </div>
-            </div>
-          )}
-          {tab === "Activity" && (
-            <div className="profile-tab-content">
-              <h2>Customer activity</h2>
-              <div className="profile-timeline">
-                <p>
-                  <span>
-                    <ShoppingBag />
-                  </span>
-                  <b>
-                    Placed order #SH-10245<small>Today, 10:24 AM</small>
-                  </b>
-                </p>
-                <p>
-                  <span>
-                    <Star />
-                  </span>
-                  <b>
-                    Left a 5-star review<small>Aug 18, 2025</small>
-                  </b>
-                </p>
-                <p>
-                  <span>
-                    <UserRound />
-                  </span>
-                  <b>
-                    Updated delivery address<small>Aug 12, 2025</small>
-                  </b>
-                </p>
-              </div>
-            </div>
-          )}
+              ))
+            ) : (
+              <p className="drawer-note">No saved addresses.</p>
+            )}
+          </div>
         </section>
         <aside className="panel profile-side">
-          <div className="profile-side-heading">
-            <h2>Customer actions</h2>
-          </div>
+          <h2 className="profile-subheading">Account</h2>
+          <p className="drawer-note">
+            Registered {new Date(customer.created_at).toLocaleString()}
+            <br />
+            Updated {new Date(customer.updated_at).toLocaleString()}
+          </p>
           <button
             className="profile-action-button"
-            onClick={() => toastMessage(setToast, "Message composer opened")}
+            onClick={() => notify("Customer email action is ready")}
           >
             <Mail />
             <span>
-              <strong>Send message</strong>
-              <small>Reach out by email</small>
+              <strong>Contact customer</strong>
+              <small>{readable(customer.email)}</small>
             </span>
             <ChevronRight />
           </button>
-          <button
-            className="profile-action-button"
-            onClick={() => toastMessage(setToast, "Order flow opened")}
-          >
-            <ShoppingBag />
-            <span>
-              <strong>Create order</strong>
-              <small>Place an order for customer</small>
-            </span>
-            <ChevronRight />
-          </button>
-          <button
-            className={`profile-action-button ${suspended ? "activate-action" : "suspend-action"}`}
-            onClick={() => {
-              setSuspended(!suspended);
-              toastMessage(
-                setToast,
-                suspended ? "Customer activated" : "Customer suspended",
-              );
-            }}
-          >
-            <Users />
-            <span>
-              <strong>
-                {suspended ? "Activate customer" : "Suspend customer"}
-              </strong>
-              <small>
-                {suspended
-                  ? "Restore account access"
-                  : "Temporarily restrict access"}
-              </small>
-            </span>
-            <ChevronRight />
-          </button>
-          <div className="side-note">
-            <Clock3 />
-            <span>
-              Last active
-              <br />
-              <strong>Today, 10:36 AM</strong>
-            </span>
-          </div>
         </aside>
       </div>
+      {confirm && (
+        <ConfirmStatus
+          customer={customer}
+          nextStatus={confirm}
+          busy={busy}
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => void changeStatus()}
+        />
+      )}
       {toast && (
         <div className="toast-message">
           <Check />
@@ -732,6 +827,7 @@ function CustomerProfile({ id, onBack }: { id: string; onBack: () => void }) {
     </main>
   );
 }
+
 export default function ShamsiyaCustomers({ detailId }: { detailId?: string }) {
   const [selected, setSelected] = useState(detailId);
   return selected ? (
