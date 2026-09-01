@@ -55,8 +55,12 @@ export async function createCustomer(input: CustomerInput) {
     body: JSON.stringify(input),
   });
   const result = await response.json().catch(() => null);
-  if (!response.ok)
-    throw new Error(result?.error ?? "Unable to create customer account.");
+  if (!response.ok) {
+    const message = result?.details
+      ? `${result.error ?? "Unable to create customer account."} (${result.details})`
+      : (result?.error ?? "Unable to create customer account.");
+    throw new Error(message);
+  }
   return result as Customer;
 }
 

@@ -39,8 +39,10 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-const revenueData = {
+type AnalyticsRevenuePoint = { label: string; revenue: number; orders: number };
+const revenueData: Record<string, AnalyticsRevenuePoint[]> = {
   "7 days": [
     { label: "Mon", revenue: 4200, orders: 108 },
     { label: "Tue", revenue: 5800, orders: 132 },
@@ -61,7 +63,7 @@ const revenueData = {
     { label: "Jul", revenue: 78200, orders: 1890 },
     { label: "Aug", revenue: 94250, orders: 2240 },
   ],
-} as const;
+};
 const foodSales = [
   ["Mandi Chicken", 238, "₵21,420", 91],
   ["Jollof Rice", 214, "₵16,050", 78],
@@ -135,7 +137,7 @@ function Stat({
   title: string;
   value: string;
   change: string;
-  icon: typeof TrendingUp;
+  icon: LucideIcon;
   down?: boolean;
 }) {
   return (

@@ -1946,6 +1946,47 @@ td small {
 .overview-orders table {
   min-width: 900px;
 }
+.recent-orders-table {
+  table-layout: fixed;
+}
+.recent-orders-table th,
+.recent-orders-table td {
+  vertical-align: middle;
+}
+.recent-orders-table th:nth-child(1),
+.recent-orders-table td:nth-child(1) {
+  width: 16%;
+}
+.recent-orders-table th:nth-child(2),
+.recent-orders-table td:nth-child(2) {
+  width: 22%;
+}
+.recent-orders-table th:nth-child(3),
+.recent-orders-table td:nth-child(3) {
+  width: 14%;
+  white-space: nowrap;
+}
+.recent-orders-table th:nth-child(4),
+.recent-orders-table td:nth-child(4) {
+  width: 14%;
+  white-space: nowrap;
+}
+.recent-orders-table th:nth-child(5),
+.recent-orders-table td:nth-child(5) {
+  width: 19%;
+}
+.recent-orders-table td:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent-orders-table td:nth-child(5) .status-badge {
+  max-width: 100%;
+}
+.recent-orders-table td:last-child {
+  width: 15%;
+  white-space: nowrap;
+}
 .quick-actions {
   margin-bottom: 17px;
 }

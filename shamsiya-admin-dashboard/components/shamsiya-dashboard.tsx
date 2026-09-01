@@ -36,6 +36,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -50,6 +51,7 @@ import {
 } from "recharts";
 import { getCurrentAdmin, signOutAdmin } from "@/lib/supabase/auth";
 import { getDashboardData } from "@/lib/services/dashboard";
+import { supabase } from "@/lib/supabase/client";
 
 const navGroups = [
   {
@@ -205,13 +207,18 @@ const activities = [
 ] as const;
 
 function statusClass(value: string) {
-  return value === "Delivered"
+  return value.toLowerCase() === "delivered"
     ? "status-success"
-    : value === "Pending"
+    : value.toLowerCase() === "pending"
       ? "status-pending"
-      : value === "Out for Delivery"
+      : value.toLowerCase() === "out for delivery"
         ? "status-info"
         : "status-neutral";
+}
+function statusLabel(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 function BrandMark() {
   return (
@@ -446,7 +453,7 @@ function StatCard({
   value: string;
   change: string;
   note: string;
-  icon: typeof TrendingUp;
+  icon: LucideIcon;
   positive?: boolean;
 }) {
   return (
@@ -570,15 +577,28 @@ function DashboardContent() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getDashboardData()
-      .then(setDashboard)
-      .catch((error) =>
-        setError(
-          error instanceof Error
-            ? error.message
-            : "Unable to load dashboard data.",
-        ),
-      );
+    let mounted = true;
+    const load = () =>
+      getDashboardData()
+        .then((data) => mounted && setDashboard(data))
+        .catch((reason) => {
+          console.error("Unable to load dashboard data", reason);
+          if (mounted)
+            setError("Unable to load dashboard data. Please try again.");
+        });
+    void load();
+    const channel = supabase
+      .channel("dashboard-orders")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        () => void load(),
+      )
+      .subscribe();
+    return () => {
+      mounted = false;
+      void supabase.removeChannel(channel);
+    };
   }, []);
 
   if (error)
@@ -597,63 +617,16 @@ function DashboardContent() {
       </div>
     );
 
-  const orders = dashboard.orders;
-  const value = (order: Record<string, unknown>, keys: string[]) =>
-    keys
-      .map((key) => order[key])
-      .find((item) => item !== undefined && item !== null && item !== "");
-  const orderRows = orders.slice(0, 5).map((order) => ({
-    id: String(value(order, ["order_number", "order_id", "id"]) ?? "Order"),
-    customer: String(
-      value(order, ["customer_name", "customer", "name"]) ?? "Unknown customer",
-    ),
-    items: String(
-      value(order, ["items", "item_name", "food_name"]) ?? "Order items",
-    ),
-    amount: Number(
-      value(order, ["total_amount", "total", "amount", "grand_total"]) ?? 0,
-    ),
-    payment: String(value(order, ["payment_status", "payment"]) ?? "Unknown"),
-    status: String(value(order, ["status", "order_status"]) ?? "Unknown"),
-    rider: String(value(order, ["rider_name", "rider"]) ?? "Unassigned"),
-    createdAt: String(value(order, ["created_at", "ordered_at", "date"]) ?? ""),
-  }));
-  const statusCounts = Array.from(
-    new Set(
-      orders.map((order) =>
-        String(value(order, ["status", "order_status"]) ?? "Unknown"),
-      ),
-    ),
-  ).map((name, index) => ({
-    name,
-    value: orders.filter(
-      (order) =>
-        String(value(order, ["status", "order_status"]) ?? "Unknown") === name,
-    ).length,
+  const stats = dashboard.stats;
+  const orderRows = dashboard.recentOrders.slice(0, 10);
+  const statusCounts = dashboard.orderStatuses.map((item, index) => ({
+    name: statusLabel(item.status),
+    value: item.count,
     color: ["#633e2d", "#d4883e", "#bd9a70", "#8d6a55", "#c7b9ae"][index % 5],
   }));
-  const revenue = orders.reduce(
-    (total, order) =>
-      total +
-      Number(
-        value(order, ["total_amount", "total", "amount", "grand_total"]) ?? 0,
-      ),
-    0,
-  );
   const formatMoney = (amount: number) =>
     `GH₵${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const chartData = orders
-    .slice(0, 7)
-    .reverse()
-    .map((order) => ({
-      day: new Date(
-        String(value(order, ["created_at", "ordered_at", "date"]) ?? ""),
-      ).toLocaleDateString(undefined, { weekday: "short" }),
-      revenue: Number(
-        value(order, ["total_amount", "total", "amount", "grand_total"]) ?? 0,
-      ),
-      orders: 1,
-    }));
+  const chartData = dashboard.revenue;
 
   return (
     <main className="main-content overview-main">
@@ -668,53 +641,89 @@ function DashboardContent() {
       </div>
       <section className="stats-grid six-stats">
         <StatCard
-          title="Revenue loaded"
-          value={formatMoney(revenue)}
+          title="Total Revenue"
+          value={formatMoney(stats.totalRevenue)}
           change="Live"
-          note="from loaded orders"
+          note="successful payments"
           icon={CircleDollarSign}
         />
         <StatCard
-          title="Orders"
-          value={String(dashboard.stats.orders)}
+          title="Total Orders"
+          value={String(stats.totalOrders)}
           change="Live"
           note="loaded from database"
           icon={ClipboardList}
         />
         <StatCard
           title="Customers"
-          value={String(dashboard.stats.customers)}
+          value={String(stats.totalCustomers)}
           change="Live"
           note="active profiles"
           icon={Users}
         />
         <StatCard
           title="Riders"
-          value={String(dashboard.stats.riders)}
+          value={String(stats.totalRiders)}
           change="Live"
           note="rider profiles"
           icon={Bike}
         />
         <StatCard
           title="Pending orders"
-          value={String(
-            statusCounts.find((item) => item.name.toLowerCase() === "pending")
-              ?.value ?? 0,
-          )}
+          value={String(stats.pendingOrders)}
           change="Live"
           note="current status"
-          icon={ClockIcon}
+          icon={CalendarDays}
           positive={false}
         />
         <StatCard
           title="Completed"
-          value={String(
-            statusCounts.find((item) => item.name.toLowerCase() === "delivered")
-              ?.value ?? 0,
-          )}
+          value={String(stats.deliveredOrders)}
           change="Live"
           note="delivered orders"
           icon={PackageCheck}
+        />
+        <StatCard
+          title="Today's Orders"
+          value={String(stats.todayOrders)}
+          change="Live"
+          note="Ghana time"
+          icon={CalendarDays}
+        />
+        <StatCard
+          title="Today's Revenue"
+          value={formatMoney(stats.todayRevenue)}
+          change="Live"
+          note="successful payments"
+          icon={CircleDollarSign}
+        />
+        <StatCard
+          title="Preparing"
+          value={String(stats.preparingOrders)}
+          change="Live"
+          note="current status"
+          icon={PackageCheck}
+        />
+        <StatCard
+          title="Out for Delivery"
+          value={String(stats.outForDeliveryOrders)}
+          change="Live"
+          note="current status"
+          icon={Bike}
+        />
+        <StatCard
+          title="Active Riders"
+          value={String(stats.activeRiders)}
+          change="Live"
+          note={`${stats.onlineRiders} online`}
+          icon={Bike}
+        />
+        <StatCard
+          title="Active Customers"
+          value={String(stats.activeCustomers)}
+          change="Live"
+          note="active profiles"
+          icon={Users}
         />
       </section>
       <div className="overview-grid">
@@ -781,8 +790,8 @@ function DashboardContent() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="donut-center">
-                  <strong>{orders.length}</strong>
-                  <span>Loaded orders</span>
+                  <strong>{stats.totalOrders}</strong>
+                  <span>Total orders</span>
                 </div>
               </div>
               <div className="status-legend">
@@ -811,16 +820,14 @@ function DashboardContent() {
         </div>
         <div className="table-wrap">
           {orderRows.length ? (
-            <table>
+            <table className="recent-orders-table">
               <thead>
                 <tr>
                   <th>Order</th>
                   <th>Customer</th>
-                  <th>Items</th>
                   <th>Amount</th>
                   <th>Payment</th>
                   <th>Status</th>
-                  <th>Rider</th>
                   <th>Time</th>
                 </tr>
               </thead>
@@ -828,24 +835,24 @@ function DashboardContent() {
                 {orderRows.map((order) => (
                   <tr key={order.id}>
                     <td>
-                      <strong>{order.id}</strong>
+                      <strong>{order.order_number}</strong>
                     </td>
-                    <td>{order.customer}</td>
-                    <td>{order.items}</td>
-                    <td>{formatMoney(order.amount)}</td>
-                    <td>{order.payment}</td>
+                    <td>{order.customer_name}</td>
+                    <td>{formatMoney(order.total)}</td>
+                    <td>{statusLabel(order.payment_status)}</td>
                     <td>
                       <span
-                        className={`status-badge ${statusClass(order.status)}`}
+                        className={`status-badge ${statusClass(statusLabel(order.status))}`}
                       >
                         <span />
-                        {order.status}
+                        {statusLabel(order.status)}
                       </span>
                     </td>
-                    <td>{order.rider}</td>
                     <td>
-                      {order.createdAt
-                        ? new Date(order.createdAt).toLocaleString()
+                      {order.created_at
+                        ? new Date(order.created_at).toLocaleString("en-GH", {
+                            timeZone: "Africa/Accra",
+                          })
                         : "—"}
                     </td>
                   </tr>
@@ -857,6 +864,40 @@ function DashboardContent() {
           )}
         </div>
       </section>
+      <section className="panel orders-panel overview-orders">
+        <div className="panel-header orders-header">
+          <div>
+            <h2>Top Selling Foods</h2>
+            <p>Best performers from successful orders</p>
+          </div>
+        </div>
+        <div className="table-wrap">
+          {dashboard.topFoods.length ? (
+            <table>
+              <thead>
+                <tr>
+                  <th>Food</th>
+                  <th>Quantity Sold</th>
+                  <th>Revenue</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dashboard.topFoods.map((food) => (
+                  <tr key={food.name}>
+                    <td>
+                      <strong>{food.name}</strong>
+                    </td>
+                    <td>{food.quantity}</td>
+                    <td>{formatMoney(food.revenue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="empty-state">No completed order items found.</p>
+          )}
+        </div>
+      </section>
       <footer className="page-footer">
         <span>Shamsiya Admin</span>
         <span>
@@ -865,9 +906,6 @@ function DashboardContent() {
       </footer>
     </main>
   );
-}
-function ClockIcon(props: object) {
-  return <CalendarDays {...props} />;
 }
 export default function ShamsiyaDashboard({
   children,
