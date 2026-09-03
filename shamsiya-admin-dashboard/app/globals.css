@@ -6397,6 +6397,21 @@ td small {
 .success-note svg {
   color: #5d8d65;
 }
+.loading-state,
+.error-state {
+  display: grid;
+  gap: 9px;
+  color: #8f7d70;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.error-state strong {
+  color: #70452f;
+  font-size: 12px;
+}
+.error-state .secondary-button {
+  justify-self: start;
+}
 .tip-list {
   display: grid;
   gap: 0;

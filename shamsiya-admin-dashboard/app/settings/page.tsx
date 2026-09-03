@@ -1,5 +1,5 @@
-import { SettingsPage } from '@/components/shamsiya-settings'
+import RestaurantSettingsPage from "@/components/restaurant-settings";
 
 export default function Page() {
-  return <SettingsPage />
+  return <RestaurantSettingsPage />;
 }
