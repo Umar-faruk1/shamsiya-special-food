@@ -1,31 +1,43 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
   CheckCircle2,
-  ChevronDown,
   ChevronRight,
-  Clock3,
-  Copy,
+  ChevronDown,
   Download,
   Edit3,
-  Eye,
   EyeOff,
   Filter,
-  Gift,
+  Image as ImageIcon,
+  Loader2,
   MoreHorizontal,
   Plus,
   Search,
   Send,
   Star,
   Tag,
-  Trash2,
   TrendingUp,
   Users,
   X,
 } from "lucide-react";
 import ShamsiyaDashboard from "./shamsiya-dashboard";
+import {
+  getReviews,
+  getReviewStats,
+  type Review,
+} from "@/lib/services/reviews";
+import {
+  createPromotion,
+  deletePromotion,
+  getPromotions,
+  togglePromotion,
+  updatePromotion,
+  type Promotion,
+  type PromotionDiscountType,
+  type PromotionInput,
+} from "@/lib/services/promotions";
 
 const promotions = [
   {
@@ -96,59 +108,6 @@ const promotions = [
   },
 ] as const;
 
-const reviews = [
-  {
-    id: "RV-00482",
-    name: "Ama Boateng",
-    initials: "AB",
-    rating: 5,
-    food: "Mandi Chicken",
-    date: "Today, 10:32 AM",
-    text: "The chicken was so tender and the jollof had the perfect smoky flavour. Fast delivery too — I will definitely order again.",
-    reply: "Thanks Ama, we are delighted you enjoyed it!",
-  },
-  {
-    id: "RV-00481",
-    name: "Kojo Mensah",
-    initials: "KM",
-    rating: 4,
-    food: "Jollof Rice & Suya",
-    date: "Today, 9:48 AM",
-    text: "Great portions and the suya spice was delicious. The packaging kept everything hot.",
-    reply: "",
-  },
-  {
-    id: "RV-00480",
-    name: "Nana Owusu",
-    initials: "NO",
-    rating: 2,
-    food: "Chicken Fried Rice",
-    date: "Yesterday, 8:15 PM",
-    text: "The food arrived late and the rice was a little dry. I expected better based on previous orders.",
-    reply: "",
-  },
-  {
-    id: "RV-00479",
-    name: "Efua Addo",
-    initials: "EA",
-    rating: 5,
-    food: "Waakye Special",
-    date: "Yesterday, 5:22 PM",
-    text: "Authentic, generous and beautifully packed. The shito was outstanding.",
-    reply: "We appreciate the kind words, Efua!",
-  },
-  {
-    id: "RV-00478",
-    name: "Yaw Asare",
-    initials: "YA",
-    rating: 3,
-    food: "Mandi Chicken",
-    date: "Aug 17, 2025",
-    text: "Tasty meal, but the delivery instructions were not followed exactly.",
-    reply: "",
-  },
-] as const;
-
 function Stars({ rating, small = false }: { rating: number; small?: boolean }) {
   return (
     <span
@@ -164,144 +123,400 @@ function Stars({ rating, small = false }: { rating: number; small?: boolean }) {
     </span>
   );
 }
-function StatusBadge({ value }: { value: string }) {
-  return (
-    <span
-      className={`status-badge ${value === "Active" ? "status-success" : value === "Ending soon" ? "status-pending" : value === "Scheduled" ? "status-info" : "status-neutral"}`}
-    >
-      <span />
-      {value}
-    </span>
-  );
-}
-function PromotionModal({
-  onClose,
-  onSave,
-}: {
+
+type PromotionFormProps = {
+  promotion: Promotion | null;
   onClose: () => void;
-  onSave: (name: string) => void;
-}) {
-  const [name, setName] = useState("");
+  onSave: (input: PromotionInput) => Promise<void>;
+};
+
+function PromotionForm({ promotion, onClose, onSave }: PromotionFormProps) {
+  const [title, setTitle] = useState(promotion?.title ?? "");
+  const [description, setDescription] = useState(promotion?.description ?? "");
+  const [imageUrl, setImageUrl] = useState(promotion?.image_url ?? "");
+  const [discountType, setDiscountType] = useState<PromotionDiscountType>(
+    promotion?.discount_type ?? "percentage",
+  );
+  const [discountValue, setDiscountValue] = useState(
+    String(promotion?.discount_value ?? ""),
+  );
+  const [minimumOrder, setMinimumOrder] = useState(
+    String(promotion?.minimum_order ?? 0),
+  );
+  const [maxDiscount, setMaxDiscount] = useState(
+    promotion?.max_discount == null ? "" : String(promotion.max_discount),
+  );
+  const [promoCode, setPromoCode] = useState(promotion?.promo_code ?? "");
+  const [startDate, setStartDate] = useState(
+    promotion?.start_date?.slice(0, 16) ?? "",
+  );
+  const [endDate, setEndDate] = useState(
+    promotion?.end_date?.slice(0, 16) ?? "",
+  );
+  const [isActive, setIsActive] = useState(promotion?.is_active ?? true);
+  const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const value = Number(discountValue);
+    const minimum = Number(minimumOrder || 0);
+    const maximum = maxDiscount === "" ? null : Number(maxDiscount);
+    if (!title.trim()) return setFormError("Title is required.");
+    if (!Number.isFinite(value) || value <= 0)
+      return setFormError("Discount value must be greater than 0.");
+    if (discountType === "percentage" && value > 100)
+      return setFormError("Percentage discounts cannot exceed 100%.");
+    if (!Number.isFinite(minimum) || minimum < 0)
+      return setFormError("Minimum order cannot be negative.");
+    if (maximum !== null && (!Number.isFinite(maximum) || maximum < 0))
+      return setFormError("Maximum discount cannot be negative.");
+    if (
+      startDate &&
+      endDate &&
+      new Date(endDate).getTime() < new Date(startDate).getTime()
+    )
+      return setFormError("End date cannot be earlier than the start date.");
+    setFormError("");
+    setSaving(true);
+    try {
+      await onSave({
+        title: title.trim(),
+        description: description.trim() || null,
+        image_url: imageUrl.trim() || null,
+        discount_type: discountType,
+        discount_value: value,
+        minimum_order: minimum,
+        max_discount: maximum,
+        promo_code: promoCode.trim() || null,
+        start_date: startDate ? new Date(startDate).toISOString() : null,
+        end_date: endDate ? new Date(endDate).toISOString() : null,
+        is_active: isActive,
+      });
+    } catch (saveError) {
+      setFormError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Unable to save promotion.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="modal-layer" role="presentation" onClick={onClose}>
-      <div
+      <form
         className="promotion-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="promotion-form-title"
+        onSubmit={submit}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="drawer-heading">
           <div>
             <div className="eyebrow">PROMOTION BUILDER</div>
-            <h2 id="promotion-form-title">Create promotion</h2>
-            <p className="modal-copy">
-              Set up a compelling offer for your Shamsiya customers.
-            </p>
+            <h2>{promotion ? "Edit promotion" : "Create promotion"}</h2>
           </div>
           <button
             className="icon-button"
+            type="button"
             onClick={onClose}
             aria-label="Close promotion form"
           >
             <X />
           </button>
         </div>
+        {formError && (
+          <div className="login-message" role="alert">
+            {formError}
+          </div>
+        )}
         <div className="promotion-form-grid">
           <label>
-            Promotion name
+            Title
             <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="e.g. Weekend Jollof Fiesta"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              required
             />
           </label>
           <label>
-            Promotion code
-            <input placeholder="e.g. JOLLOF20" />
+            Promo code
+            <input
+              value={promoCode}
+              onChange={(event) => setPromoCode(event.target.value)}
+              placeholder="Optional"
+            />
+          </label>
+          <label>
+            Description
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={3}
+            />
+          </label>
+          <label>
+            Image URL
+            <input
+              type="url"
+              value={imageUrl}
+              onChange={(event) => setImageUrl(event.target.value)}
+              placeholder="Optional image URL"
+            />
           </label>
           <label>
             Discount type
-            <select>
-              <option>Percentage discount</option>
-              <option>Fixed amount</option>
-              <option>Free delivery</option>
+            <select
+              value={discountType}
+              onChange={(event) =>
+                setDiscountType(event.target.value as PromotionDiscountType)
+              }
+            >
+              <option value="percentage">Percentage</option>
+              <option value="fixed">Fixed amount</option>
             </select>
           </label>
           <label>
             Discount value
-            <input placeholder="20" />
-          </label>
-          <label>
-            Start date
-            <input type="date" />
-          </label>
-          <label>
-            End date
-            <input type="date" />
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={discountValue}
+              onChange={(event) => setDiscountValue(event.target.value)}
+              required
+            />
           </label>
           <label>
             Minimum order
-            <input placeholder="GH₵0.00" />
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={minimumOrder}
+              onChange={(event) => setMinimumOrder(event.target.value)}
+            />
           </label>
           <label>
-            Usage limit
-            <input placeholder="Unlimited" />
-          </label>
-          <label className="promotion-wide">
-            Customer eligibility
-            <select>
-              <option>All customers</option>
-              <option>New customers</option>
-              <option>Returning customers</option>
-              <option>Selected segment</option>
-            </select>
-          </label>
-          <label className="promotion-wide">
-            Description
-            <textarea
-              placeholder="Tell customers about this offer..."
-              rows={3}
+            Maximum discount
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={maxDiscount}
+              onChange={(event) => setMaxDiscount(event.target.value)}
+              placeholder="Optional"
             />
+          </label>
+          <label>
+            Start date
+            <input
+              type="datetime-local"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+            />
+          </label>
+          <label>
+            End date
+            <input
+              type="datetime-local"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+            />
+          </label>
+          <label className="promotion-toggle">
+            <input
+              type="checkbox"
+              checked={isActive}
+              onChange={(event) => setIsActive(event.target.checked)}
+            />{" "}
+            Active
           </label>
         </div>
         <div className="food-form-footer">
-          <button className="secondary-button" onClick={onClose}>
+          <button className="secondary-button" type="button" onClick={onClose}>
             Cancel
           </button>
-          <button
-            className="primary-button"
-            onClick={() => onSave(name || "New promotion")}
-          >
-            <CheckCircle2 />
-            Save promotion
+          <button className="primary-button" disabled={saving}>
+            {saving ? <Loader2 className="spin" /> : <CheckCircle2 />}{" "}
+            {saving ? "Saving..." : "Save promotion"}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
+
+type PromotionStatus =
+  | "Active"
+  | "Inactive"
+  | "Running"
+  | "Upcoming"
+  | "Expired";
+function promotionStatus(
+  promotion: Promotion,
+  now = Date.now(),
+): PromotionStatus {
+  if (!promotion.is_active) return "Inactive";
+  const starts =
+    !promotion.start_date || new Date(promotion.start_date).getTime() <= now;
+  const ends =
+    !promotion.end_date || new Date(promotion.end_date).getTime() >= now;
+  if (starts && ends) return "Running";
+  if (promotion.start_date && new Date(promotion.start_date).getTime() > now)
+    return "Upcoming";
+  return "Expired";
+}
+
 function PromotionsPage() {
+  const [items, setItems] = useState<Promotion[]>([]);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("All statuses");
-  const [modal, setModal] = useState(false);
+  const [filter, setFilter] = useState("all");
+  const [sort, setSort] = useState("newest");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [toast, setToast] = useState("");
-  const visible = useMemo(
-    () =>
-      promotions.filter(
-        (p) =>
-          (!query ||
-            `${p.name} ${p.code}`
-              .toLowerCase()
-              .includes(query.toLowerCase())) &&
-          (filter === "All statuses" || p.status === filter),
-      ),
-    [query, filter],
-  );
+  const [formPromotion, setFormPromotion] = useState<
+    Promotion | null | undefined
+  >(undefined);
+
   const notify = (message: string) => {
     setToast(message);
-    setTimeout(() => setToast(""), 1800);
+    window.setTimeout(() => setToast(""), 2200);
   };
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      setItems(await getPromotions());
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Unable to load promotions.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const visible = useMemo(() => {
+    const now = Date.now();
+    return items
+      .filter((item) => {
+        const text =
+          `${item.title} ${item.promo_code ?? ""} ${item.description ?? ""}`.toLowerCase();
+        const state = promotionStatus(item, now);
+        return (
+          (!query.trim() || text.includes(query.trim().toLowerCase())) &&
+          (filter === "all" ||
+            (filter === "active" && item.is_active) ||
+            (filter === "inactive" && !item.is_active) ||
+            state.toLowerCase() === filter)
+        );
+      })
+      .sort((a, b) => {
+        if (sort === "oldest")
+          return (
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+        if (sort === "title") return a.title.localeCompare(b.title);
+        if (sort === "start")
+          return (
+            new Date(a.start_date ?? 8640000000000000).getTime() -
+            new Date(b.start_date ?? 8640000000000000).getTime()
+          );
+        if (sort === "end")
+          return (
+            new Date(a.end_date ?? 8640000000000000).getTime() -
+            new Date(b.end_date ?? 8640000000000000).getTime()
+          );
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      });
+  }, [items, query, filter, sort]);
+
+  const stats = useMemo(
+    () => ({
+      total: items.length,
+      active: items.filter((item) => item.is_active).length,
+      inactive: items.filter((item) => !item.is_active).length,
+      running: items.filter((item) => promotionStatus(item) === "Running")
+        .length,
+    }),
+    [items],
+  );
+  const discount = (item: Promotion) =>
+    item.discount_type === "percentage"
+      ? `${item.discount_value}% OFF`
+      : `GH₵ ${Number(item.discount_value).toFixed(2)} OFF`;
+  const date = (value: string | null) =>
+    value ? new Date(value).toLocaleDateString() : "No limit";
+  const badgeClass = (status: PromotionStatus) =>
+    status === "Running"
+      ? "status-success"
+      : status === "Upcoming"
+        ? "status-info"
+        : status === "Expired"
+          ? "status-negative"
+          : status === "Inactive"
+            ? "status-neutral"
+            : "status-success";
+
+  async function save(input: PromotionInput) {
+    const saved = formPromotion
+      ? await updatePromotion(formPromotion.id, input)
+      : await createPromotion(input);
+    setItems((current) =>
+      formPromotion
+        ? current.map((item) => (item.id === saved.id ? saved : item))
+        : [saved, ...current],
+    );
+    setFormPromotion(undefined);
+    notify(formPromotion ? "Promotion updated" : "Promotion created");
+  }
+  async function toggle(item: Promotion) {
+    if (
+      !window.confirm(
+        `${item.is_active ? "Deactivate" : "Activate"} ${item.title}?`,
+      )
+    )
+      return;
+    try {
+      const updated = await togglePromotion(item.id, !item.is_active);
+      setItems((current) =>
+        current.map((row) => (row.id === updated.id ? updated : row)),
+      );
+      notify(
+        updated.is_active ? "Promotion activated" : "Promotion deactivated",
+      );
+    } catch (toggleError) {
+      notify(
+        toggleError instanceof Error
+          ? toggleError.message
+          : "Unable to update promotion.",
+      );
+    }
+  }
+  async function remove(item: Promotion) {
+    if (!window.confirm(`Delete ${item.title}? This cannot be undone.`)) return;
+    try {
+      await deletePromotion(item.id);
+      setItems((current) => current.filter((row) => row.id !== item.id));
+      notify("Promotion deleted");
+    } catch (deleteError) {
+      notify(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Unable to delete promotion.",
+      );
+    }
+  }
+
   return (
     <ShamsiyaDashboard>
       <main className="main-content promotions-main">
@@ -315,163 +530,51 @@ function PromotionsPage() {
           </div>
           <div className="heading-actions">
             <button
-              className="secondary-button"
-              onClick={() => notify("Promotion report exported")}
+              className="primary-button"
+              onClick={() => setFormPromotion(null)}
             >
-              <Download />
-              Export
-            </button>
-            <button className="primary-button" onClick={() => setModal(true)}>
-              <Plus />
-              Create promotion
+              <Plus /> Create promotion
             </button>
           </div>
         </div>
         <section className="stats-grid promotion-stats">
-          <article className="stat-card">
-            <div className="stat-head">
-              <span>Active promotions</span>
-              <div className="stat-icon">
-                <Tag />
+          {(
+            [
+              ["Total promotions", stats.total, Tag],
+              ["Active promotions", stats.active, TrendingUp],
+              ["Inactive promotions", stats.inactive, EyeOff],
+              ["Currently running", stats.running, CheckCircle2],
+            ] as [string, number, typeof Tag][]
+          ).map(([label, value, Icon]) => (
+            <article className="stat-card" key={label}>
+              <div className="stat-head">
+                <span>{label}</span>
+                <div className="stat-icon">
+                  <Icon />
+                </div>
               </div>
-            </div>
-            <div className="stat-value">4</div>
-            <div className="stat-foot">
-              <span className="trend-up">
-                <TrendingUp />
-                +2 this month
-              </span>
-              <span>running now</span>
-            </div>
-          </article>
-          <article className="stat-card">
-            <div className="stat-head">
-              <span>Redemptions</span>
-              <div className="stat-icon">
-                <Gift />
+              <div className="stat-value">{value}</div>
+              <div className="stat-foot">
+                <span>Live database value</span>
               </div>
-            </div>
-            <div className="stat-value">2,158</div>
-            <div className="stat-foot">
-              <span className="trend-up">
-                <TrendingUp />
-                18.4%
-              </span>
-              <span>vs previous period</span>
-            </div>
-          </article>
-          <article className="stat-card">
-            <div className="stat-head">
-              <span>Revenue influenced</span>
-              <div className="stat-icon">
-                <BarChart3 />
-              </div>
-            </div>
-            <div className="stat-value">GH₵74.0k</div>
-            <div className="stat-foot">
-              <span className="trend-up">
-                <TrendingUp />
-                22.8%
-              </span>
-              <span>from promotions</span>
-            </div>
-          </article>
-          <article className="stat-card">
-            <div className="stat-head">
-              <span>Avg. order uplift</span>
-              <div className="stat-icon">
-                <Users />
-              </div>
-            </div>
-            <div className="stat-value">31.6%</div>
-            <div className="stat-foot">
-              <span className="trend-up">
-                <TrendingUp />
-                6.2%
-              </span>
-              <span>when redeemed</span>
-            </div>
-          </article>
+            </article>
+          ))}
         </section>
-        <section className="campaign-grid">
-          <article className="campaign-card campaign-featured">
-            <div className="campaign-ribbon">TOP PERFORMER</div>
-            <div className="campaign-icon">
-              <Gift />
-            </div>
-            <div>
-              <h2>Weekend Jollof Fiesta</h2>
-              <p>20% off all rice dishes</p>
-            </div>
-            <strong>GH₵12,480</strong>
-            <small>revenue influenced</small>
-            <div className="campaign-progress">
-              <span>
-                <i style={{ width: "57%" }} />
-              </span>
-              <small>284 of 500 redemptions</small>
-            </div>
-            <button
-              className="text-button"
-              onClick={() => notify("Promotion details opened")}
-            >
-              View campaign <ChevronRight />
+        {error && (
+          <div className="login-message" role="alert">
+            <span>{error}</span>
+            <button className="text-button" onClick={() => void load()}>
+              Retry
             </button>
-          </article>
-          <article className="campaign-card">
-            <div className="campaign-icon green">
-              <Send />
-            </div>
-            <div>
-              <h2>New Customer Welcome</h2>
-              <p>15% off first order</p>
-            </div>
-            <strong>GH₵7,820</strong>
-            <small>revenue influenced</small>
-            <div className="campaign-progress">
-              <span>
-                <i style={{ width: "31%" }} />
-              </span>
-              <small>156 redemptions</small>
-            </div>
-            <button
-              className="text-button"
-              onClick={() => notify("Promotion details opened")}
-            >
-              View campaign <ChevronRight />
-            </button>
-          </article>
-          <article className="campaign-card">
-            <div className="campaign-icon purple">
-              <Clock3 />
-            </div>
-            <div>
-              <h2>Chop Bar Lunch Deal</h2>
-              <p>GH₵10 off orders over GH₵60</p>
-            </div>
-            <strong>GH₵10,840</strong>
-            <small>revenue influenced</small>
-            <div className="campaign-progress">
-              <span>
-                <i style={{ width: "84%" }} />
-              </span>
-              <small>ending in 2 days</small>
-            </div>
-            <button
-              className="text-button"
-              onClick={() => notify("Promotion details opened")}
-            >
-              View campaign <ChevronRight />
-            </button>
-          </article>
-        </section>
+          </div>
+        )}
         <section className="panel promotion-table-panel">
           <div className="panel-header">
             <div>
               <h2>All promotions</h2>
-              <p>Manage codes, eligibility, and campaign performance</p>
+              <p>Manage offers, codes, dates, and visibility.</p>
             </div>
-            <span className="panel-count">{visible.length} campaigns</span>
+            <span className="panel-count">{visible.length} promotions</span>
           </div>
           <div className="promotion-toolbar">
             <label className="promotion-search">
@@ -479,7 +582,7 @@ function PromotionsPage() {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search promotions or codes..."
+                placeholder="Search title, code, or description..."
               />
             </label>
             <div className="promotion-filters">
@@ -488,19 +591,24 @@ function PromotionsPage() {
                 onChange={(event) => setFilter(event.target.value)}
                 aria-label="Filter promotions"
               >
-                <option>All statuses</option>
-                <option>Active</option>
-                <option>Ending soon</option>
-                <option>Scheduled</option>
-                <option>Draft</option>
+                <option value="all">All</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="running">Currently Running</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="expired">Expired</option>
               </select>
-              <button
-                className="secondary-button filter-button"
-                onClick={() => notify("Advanced filters coming soon")}
+              <select
+                value={sort}
+                onChange={(event) => setSort(event.target.value)}
+                aria-label="Sort promotions"
               >
-                <Filter />
-                Filters
-              </button>
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="title">Title</option>
+                <option value="start">Start date</option>
+                <option value="end">End date</option>
+              </select>
             </div>
           </div>
           <div className="promotion-table-wrap">
@@ -508,87 +616,114 @@ function PromotionsPage() {
               <thead>
                 <tr>
                   <th>Promotion</th>
-                  <th>Offer</th>
-                  <th>Audience</th>
-                  <th>Redemptions</th>
-                  <th>Revenue</th>
-                  <th>Status</th>
+                  <th>Discount</th>
+                  <th>Promo code</th>
+                  <th>Minimum order</th>
                   <th>Dates</th>
-                  <th />
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {visible.map((promotion) => (
-                  <tr key={promotion.code}>
-                    <td>
-                      <div className="promotion-name">
-                        <span className="promotion-row-icon">
-                          <Tag />
+                {visible.map((item) => {
+                  const state = promotionStatus(item);
+                  return (
+                    <tr key={item.id}>
+                      <td>
+                        <div className="promotion-name">
+                          <span className="promotion-row-icon">
+                            {item.image_url ? <ImageIcon /> : <Tag />}
+                          </span>
+                          <span>
+                            <strong>{item.title}</strong>
+                            <small>
+                              {item.description || "No description"}
+                            </small>
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <strong>{discount(item)}</strong>
+                        <small>
+                          {item.max_discount == null
+                            ? "No cap"
+                            : `Max GH₵ ${Number(item.max_discount).toFixed(2)}`}
+                        </small>
+                      </td>
+                      <td>{item.promo_code || "N/A"}</td>
+                      <td>GH₵ {Number(item.minimum_order || 0).toFixed(2)}</td>
+                      <td>
+                        <small>
+                          {date(item.start_date)} - {date(item.end_date)}
+                        </small>
+                      </td>
+                      <td>
+                        <span className={`status-badge ${badgeClass(state)}`}>
+                          {state}
                         </span>
-                        <span>
-                          <strong>{promotion.name}</strong>
-                          <small>
-                            {promotion.code} <Copy />
-                          </small>
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <strong>{promotion.value}</strong>
-                      <small>{promotion.type}</small>
-                    </td>
-                    <td>{promotion.audience}</td>
-                    <td>{promotion.uses}</td>
-                    <td>
-                      <strong>{promotion.revenue}</strong>
-                    </td>
-                    <td>
-                      <StatusBadge value={promotion.status} />
-                    </td>
-                    <td>
-                      <small>{promotion.dates}</small>
-                    </td>
-                    <td>
-                      <button
-                        className="icon-button"
-                        onClick={() => notify(`Editing ${promotion.name}`)}
-                        aria-label={`Edit ${promotion.name}`}
-                      >
-                        <MoreHorizontal />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td>
+                        <small>{date(item.created_at)}</small>
+                      </td>
+                      <td>
+                        <div className="heading-actions">
+                          <button
+                            className="icon-button"
+                            onClick={() => setFormPromotion(item)}
+                            aria-label={`Edit ${item.title}`}
+                          >
+                            <Edit3 />
+                          </button>
+                          <button
+                            className="icon-button"
+                            onClick={() => void toggle(item)}
+                            aria-label={`${item.is_active ? "Deactivate" : "Activate"} ${item.title}`}
+                          >
+                            <CheckCircle2 />
+                          </button>
+                          <button
+                            className="icon-button"
+                            onClick={() => void remove(item)}
+                            aria-label={`Delete ${item.title}`}
+                          >
+                            <MoreHorizontal />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
-            {visible.length === 0 && (
+            {loading && (
               <div className="empty-promotions">
-                <Search />
-                <strong>No promotions found</strong>
-                <span>Try a different campaign name or status.</span>
+                <Loader2 className="spin" />
+                <strong>Loading promotions...</strong>
+                <span>Fetching live promotion data.</span>
+              </div>
+            )}
+            {!loading && visible.length === 0 && (
+              <div className="empty-promotions">
+                <Tag />
+                <strong>
+                  {items.length ? "No promotions match" : "No promotions yet"}
+                </strong>
+                <span>
+                  {items.length
+                    ? "Try a different search or filter."
+                    : "Create a promotion to start offering discounts."}
+                </span>
               </div>
             )}
           </div>
-          <div className="panel-footer">
-            <span>
-              Showing {visible.length} of {promotions.length} promotions
-            </span>
-            <button
-              className="text-button"
-              onClick={() => notify("All promotions loaded")}
-            >
-              View all promotions <ChevronRight />
-            </button>
-          </div>
         </section>
       </main>
-      {modal && (
-        <PromotionModal
-          onClose={() => setModal(false)}
-          onSave={(name) => {
-            setModal(false);
-            notify(`${name} saved as draft`);
-          }}
+      {formPromotion !== undefined && (
+        <PromotionForm
+          promotion={formPromotion}
+          onClose={() => setFormPromotion(undefined)}
+          onSave={save}
         />
       )}
       {toast && (
@@ -600,20 +735,85 @@ function PromotionsPage() {
     </ShamsiyaDashboard>
   );
 }
+
 function ReviewsPage() {
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [filter, setFilter] = useState("All ratings");
+  const [query, setQuery] = useState("");
   const [hidden, setHidden] = useState<string[]>([]);
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [toast, setToast] = useState("");
+
+  useEffect(() => {
+    async function loadReviews() {
+      try {
+        setLoading(true);
+        setError("");
+        const data = await getReviews();
+        setReviews(data);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to load reviews from the database.",
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void loadReviews();
+  }, []);
+
+  const stats = useMemo(() => getReviewStats(reviews), [reviews]);
+
+  const visible = useMemo(
+    () =>
+      reviews.filter(
+        (review) =>
+          (filter === "All ratings" ||
+            review.rating === Number(filter.split(" ")[0])) &&
+          (!query.trim() ||
+            [
+              review.customer?.full_name,
+              review.customer?.email,
+              review.comment,
+              review.menu_item?.name,
+              review.rider?.profile?.full_name,
+              review.order?.order_number,
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase()
+              .includes(query.trim().toLowerCase())) &&
+          !hidden.includes(review.id),
+      ),
+    [reviews, filter, hidden, query],
+  );
+
   const notify = (message: string) => {
     setToast(message);
     setTimeout(() => setToast(""), 1800);
   };
-  const visible = reviews.filter(
-    (review) =>
-      (filter === "All ratings" ||
-        review.rating === Number(filter.split(" ")[0])) &&
-      !hidden.includes(review.id),
-  );
+
+  const ratingPercentages = [5, 4, 3, 2, 1].map((rating) => {
+    const count =
+      stats.starCounts[rating as keyof typeof stats.starCounts] ?? 0;
+    const percentage = stats.totalReviews
+      ? (count / stats.totalReviews) * 100
+      : 0;
+    return { rating, count, percentage };
+  });
+
+  const topRated = useMemo(() => {
+    if (!reviews.length) return null;
+
+    const ranked = [...reviews].sort((a, b) => b.rating - a.rating);
+    return ranked[0];
+  }, [reviews]);
+
   return (
     <ShamsiyaDashboard>
       <main className="main-content reviews-main">
@@ -647,25 +847,29 @@ function ReviewsPage() {
             </button>
           </div>
         </div>
+
+        {error && (
+          <div className="login-message" role="alert">
+            {error}
+          </div>
+        )}
+
         <section className="reviews-summary">
           <article className="panel rating-summary-card">
             <div className="rating-score">
-              <strong>4.8</strong>
-              <Stars rating={5} />
-              <span>Based on 2,486 reviews</span>
+              <strong>{stats.totalReviews ? stats.averageRating : 0}</strong>
+              <Stars rating={Math.round(stats.averageRating || 0)} />
+              <span>
+                Based on {stats.totalReviews} review
+                {stats.totalReviews === 1 ? "" : "s"}
+              </span>
               <b>
                 <TrendingUp />
-                +0.3 vs last month
+                Live database rating
               </b>
             </div>
             <div className="rating-bars">
-              {[
-                [5, 1874, 75],
-                [4, 398, 16],
-                [3, 126, 5],
-                [2, 57, 2],
-                [1, 31, 1],
-              ].map(([rating, count, percentage]) => (
+              {ratingPercentages.map(({ rating, count, percentage }) => (
                 <div key={rating}>
                   <span>
                     {rating} <Star />
@@ -678,26 +882,42 @@ function ReviewsPage() {
               ))}
             </div>
           </article>
+
           <article className="panel review-highlight-card">
             <div className="highlight-icon">
               <Star />
             </div>
             <div>
-              <span>Most loved today</span>
-              <h2>Mandi Chicken</h2>
-              <Stars rating={5} small />
-              <p>“Tender, smoky and packed with flavour.”</p>
-              <small>94% positive sentiment</small>
+              <span>Most loved item</span>
+              <h2>{topRated?.menu_item?.name ?? "No reviews yet"}</h2>
+              <Stars rating={topRated?.rating ?? 0} small />
+              <p>
+                {topRated?.comment
+                  ? `“${topRated.comment}”`
+                  : "Customer feedback is still coming in."}
+              </p>
+              <small>
+                {topRated
+                  ? `${Math.round(
+                      (topRated.rating / 5) * 100,
+                    )}% customer satisfaction`
+                  : "Awaiting review data"}
+              </small>
             </div>
           </article>
+
           <article className="panel review-highlight-card soft-green">
             <div className="highlight-icon">
               <Users />
             </div>
             <div>
-              <span>Response rate</span>
-              <h2>87.4%</h2>
-              <p>Average response time: 2h 18m</p>
+              <span>Review volume</span>
+              <h2>{stats.totalReviews}</h2>
+              <p>
+                {stats.totalReviews
+                  ? `${Math.max(1, Math.round(stats.averageRating * 10))}% average sentiment`
+                  : "No reviews submitted yet"}
+              </p>
               <button
                 className="text-button"
                 onClick={() => notify("Response inbox opened")}
@@ -707,6 +927,7 @@ function ReviewsPage() {
             </div>
           </article>
         </section>
+
         <section className="panel review-list-panel">
           <div className="panel-header">
             <div>
@@ -736,63 +957,91 @@ function ReviewsPage() {
               ))}
             </div>
           </div>
+          <label className="promotion-search review-search">
+            <Search />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search customer, food, rider, order, or comment..."
+              aria-label="Search reviews"
+            />
+          </label>
           <div className="review-list">
-            {visible.map((review) => (
-              <article
-                className={`review-card ${review.rating <= 2 ? "review-negative" : ""}`}
-                key={review.id}
-              >
-                <div className="review-card-top">
-                  <div className="reviewer">
-                    <div className="avatar avatar-sm">{review.initials}</div>
-                    <span>
-                      <strong>{review.name}</strong>
-                      <small>
-                        {review.date} · {review.food}
-                      </small>
-                    </span>
-                  </div>
-                  <Stars rating={review.rating} />
-                  <button
-                    className="icon-button"
-                    onClick={() => {
-                      setHidden((current) => [...current, review.id]);
-                      notify("Review hidden from public view");
-                    }}
-                    aria-label={`Hide review from ${review.name}`}
-                  >
-                    <EyeOff />
-                  </button>
-                </div>
-                <p className="review-text">{review.text}</p>
-                {review.reply ? (
-                  <div className="review-reply">
-                    <CheckCircle2 />
-                    <span>
-                      <b>Your reply</b>
-                      {review.reply}
-                    </span>
+            {loading ? (
+              <div className="empty-promotions">
+                <Star />
+                <strong>Loading reviews...</strong>
+                <span>Fetching the latest customer feedback.</span>
+              </div>
+            ) : visible.length ? (
+              visible.map((review) => (
+                <article
+                  className={`review-card ${review.rating <= 2 ? "review-negative" : ""}`}
+                  key={review.id}
+                >
+                  <div className="review-card-top">
+                    <div className="reviewer">
+                      <div className="avatar avatar-sm">
+                        {(review.customer?.full_name?.split(" ")[0]?.[0] ||
+                          "C") +
+                          (review.customer?.full_name?.split(" ")[1]?.[0] ||
+                            "")}
+                      </div>
+                      <span>
+                        <strong>
+                          {review.customer?.full_name ?? "Customer"}
+                        </strong>
+                        <small>
+                          {new Date(review.created_at).toLocaleString()} ·{" "}
+                          {review.menu_item?.name ?? "Menu item"}
+                        </small>
+                      </span>
+                    </div>
+                    <Stars rating={review.rating} />
                     <button
-                      className="text-button"
-                      onClick={() => notify("Reply editor opened")}
+                      className="icon-button"
+                      onClick={() => {
+                        setHidden((current) => [...current, review.id]);
+                        notify("Review hidden from public view");
+                      }}
+                      aria-label={`Hide review from ${review.customer?.full_name ?? "customer"}`}
                     >
-                      <Edit3 />
+                      <EyeOff />
                     </button>
                   </div>
-                ) : (
+                  <p className="review-text">
+                    {review.comment || "No comment left for this review."}
+                  </p>
+                  <button
+                    className="text-button"
+                    onClick={() => setSelectedReview(review)}
+                  >
+                    View review details <ChevronRight />
+                  </button>
+                  {review.id ? (
+                    <div className="review-reply">
+                      <CheckCircle2 />
+                      <span>
+                        <b>Order</b>
+                        {review.order?.order_number
+                          ? ` ${review.order.order_number}`
+                          : " Review record"}
+                        {review.rider?.profile?.full_name
+                          ? ` · Rider ${review.rider.profile.full_name}`
+                          : ""}
+                      </span>
+                    </div>
+                  ) : null}
                   <button
                     className="reply-button"
-                    onClick={() =>
-                      notify(`Reply editor opened for ${review.name}`)
-                    }
+                    onClick={() => notify("Reply editor opened")}
                   >
                     <Send />
                     Reply to review
                   </button>
-                )}
-              </article>
-            ))}
-            {visible.length === 0 && (
+                </article>
+              ))
+            ) : (
               <div className="empty-promotions">
                 <EyeOff />
                 <strong>No reviews match this filter</strong>
@@ -808,7 +1057,80 @@ function ReviewsPage() {
           {toast}
         </div>
       )}
+      {selectedReview && (
+        <div
+          className="modal-layer"
+          role="presentation"
+          onClick={() => setSelectedReview(null)}
+        >
+          <div
+            className="promotion-modal review-detail-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="review-detail-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="drawer-heading">
+              <div>
+                <div className="eyebrow">REVIEW DETAILS</div>
+                <h2 id="review-detail-title">
+                  {selectedReview.customer?.full_name ?? "Customer review"}
+                </h2>
+                <Stars rating={selectedReview.rating} />
+              </div>
+              <button
+                className="icon-button"
+                onClick={() => setSelectedReview(null)}
+                aria-label="Close review details"
+              >
+                <X />
+              </button>
+            </div>
+            <p className="review-text">
+              {selectedReview.comment || "No comment left for this review."}
+            </p>
+            <div className="promotion-form-grid review-detail-grid">
+              <div>
+                <strong>Menu item</strong>
+                <span>{selectedReview.menu_item?.name ?? "Not linked"}</span>
+              </div>
+              <div>
+                <strong>Order</strong>
+                <span>
+                  {selectedReview.order?.order_number ??
+                    selectedReview.order_id}
+                </span>
+              </div>
+              <div>
+                <strong>Rider</strong>
+                <span>
+                  {selectedReview.rider?.profile?.full_name ?? "Not linked"}
+                </span>
+              </div>
+              <div>
+                <strong>Submitted</strong>
+                <span>
+                  {new Date(selectedReview.created_at).toLocaleString()}
+                </span>
+              </div>
+              <div>
+                <strong>Customer email</strong>
+                <span>{selectedReview.customer?.email ?? "Not available"}</span>
+              </div>
+              <div>
+                <strong>Order total</strong>
+                <span>
+                  {selectedReview.order?.total == null
+                    ? "Not available"
+                    : `GH₵${Number(selectedReview.order.total).toFixed(2)}`}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </ShamsiyaDashboard>
   );
 }
+
 export { PromotionsPage, ReviewsPage };

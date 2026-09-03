@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -40,6 +40,12 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import {
+  getPayments,
+  type Payment,
+  type PaymentMethod,
+  type PaymentStatus,
+} from "@/lib/services/payments";
 
 type AnalyticsRevenuePoint = { label: string; revenue: number; orders: number };
 const revenueData: Record<string, AnalyticsRevenuePoint[]> = {
@@ -426,30 +432,123 @@ function AnalyticsPage() {
     </main>
   );
 }
-function paymentStatus(value: string) {
-  return value === "Paid"
-    ? "status-success"
-    : value === "Pending"
-      ? "status-pending"
-      : "status-negative";
-}
 function PaymentsPage() {
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("All statuses");
-  const [selected, setSelected] = useState<(typeof payments)[number] | null>(
-    null,
-  );
-  const rows = useMemo(
-    () =>
-      payments.filter(
-        (row) =>
-          `${row[0]} ${row[1]} ${row[2]}`
-            .toLowerCase()
-            .includes(query.toLowerCase()) &&
-          (status === "All statuses" || row[4] === status),
-      ),
-    [query, status],
-  );
+  const [status, setStatus] = useState<PaymentStatus | "all">("all");
+  const [method, setMethod] = useState<PaymentMethod | "all">("all");
+  const [dateRange, setDateRange] = useState("all");
+  const [sort, setSort] = useState("created_desc");
+  const [paymentsData, setPaymentsData] = useState<Payment[]>([]);
+  const [selected, setSelected] = useState<Payment | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function loadPayments() {
+    setLoading(true);
+    setError("");
+    try {
+      setPaymentsData(await getPayments());
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Unable to load payments.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadPayments();
+  }, []);
+
+  const rows = useMemo(() => {
+    const search = query.trim().toLowerCase();
+    const now = Date.now();
+    const rangeStart =
+      dateRange === "today"
+        ? new Date(new Date().setHours(0, 0, 0, 0)).getTime()
+        : dateRange === "7"
+          ? now - 7 * 24 * 60 * 60 * 1000
+          : dateRange === "30"
+            ? now - 30 * 24 * 60 * 60 * 1000
+            : null;
+
+    return paymentsData
+      .filter((payment) => {
+        const searchable = [
+          payment.transaction_id,
+          payment.order?.order_number,
+          payment.customer?.full_name,
+          payment.customer?.email,
+          payment.provider,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return (
+          (!search || searchable.includes(search)) &&
+          (status === "all" || payment.status === status) &&
+          (method === "all" || payment.method === method) &&
+          (rangeStart === null ||
+            new Date(payment.created_at).getTime() >= rangeStart)
+        );
+      })
+      .sort((a, b) => {
+        if (sort === "amount_asc") return Number(a.amount) - Number(b.amount);
+        if (sort === "amount_desc") return Number(b.amount) - Number(a.amount);
+        if (sort === "paid_desc")
+          return (
+            new Date(b.paid_at ?? 0).getTime() -
+            new Date(a.paid_at ?? 0).getTime()
+          );
+        if (sort === "paid_asc")
+          return (
+            new Date(a.paid_at ?? 0).getTime() -
+            new Date(b.paid_at ?? 0).getTime()
+          );
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      });
+  }, [paymentsData, query, status, method, dateRange, sort]);
+
+  const summary = useMemo(() => {
+    const count = (value: PaymentStatus) =>
+      paymentsData.filter((payment) => payment.status === value).length;
+    const sum = (value?: PaymentStatus) =>
+      paymentsData
+        .filter((payment) => !value || payment.status === value)
+        .reduce((total, payment) => total + Number(payment.amount || 0), 0);
+    return {
+      total: paymentsData.length,
+      successful: count("successful"),
+      pending: count("pending"),
+      processing: count("processing"),
+      failed: count("failed"),
+      refunded: count("refunded"),
+      totalRevenue: sum(),
+      successfulRevenue: sum("successful"),
+    };
+  }, [paymentsData]);
+
+  const money = (amount: number) => `₵${amount.toFixed(2)}`;
+  const displayMethod = (value: PaymentMethod) =>
+    ({ cash: "Cash", mobile_money: "Mobile Money", card: "Card" })[value];
+  const displayStatus = (value: PaymentStatus) =>
+    value.replace("_", " ").replace(/^\w/, (letter) => letter.toUpperCase());
+  const statusClass = (value: PaymentStatus) =>
+    value === "successful"
+      ? "status-success"
+      : value === "pending" || value === "processing"
+        ? "status-pending"
+        : value === "refunded"
+          ? "status-info"
+          : "status-negative";
+  const date = (value: string | null) =>
+    value ? new Date(value).toLocaleString() : "N/A";
+
   return (
     <main className="main-content payments-main">
       <div className="page-heading">
@@ -460,45 +559,78 @@ function PaymentsPage() {
           <h1>Payments</h1>
           <p>Track transactions, revenue, and payment health.</p>
         </div>
-        <button className="secondary-button">
+        <button className="secondary-button" type="button">
           <Download /> Export report
         </button>
       </div>
       <section className="stats-grid payment-stats">
         <Stat
-          title="Total Revenue"
-          value="₵286,450"
-          change="12.5%"
+          title="Total Payments"
+          value={String(summary.total)}
+          change="All records"
           icon={CircleDollarSign}
         />
         <Stat
           title="Successful Payments"
-          value="₵268,210"
-          change="93.6%"
+          value={String(summary.successful)}
+          change={money(summary.successfulRevenue)}
           icon={CheckCircle2}
         />
         <Stat
           title="Pending Payments"
-          value="₵8,420"
-          change="18 transactions"
+          value={String(summary.pending)}
+          change="Awaiting payment"
           icon={Wallet}
           down
         />
         <Stat
-          title="Refunds"
-          value="₵9,820"
-          change="12 refunds"
+          title="Processing Payments"
+          value={String(summary.processing)}
+          change="In progress"
+          icon={Wallet}
+        />
+        <Stat
+          title="Failed Payments"
+          value={String(summary.failed)}
+          change="Needs attention"
           icon={ArrowDownRight}
           down
         />
+        <Stat
+          title="Refunded Payments"
+          value={String(summary.refunded)}
+          change="Refund records"
+          icon={ArrowDownRight}
+          down
+        />
+        <Stat
+          title="Total Revenue"
+          value={money(summary.totalRevenue)}
+          change="All payment records"
+          icon={CircleDollarSign}
+        />
+        <Stat
+          title="Successful Revenue"
+          value={money(summary.successfulRevenue)}
+          change="Successful only"
+          icon={CheckCircle2}
+        />
       </section>
+      {error && (
+        <div className="login-message" role="alert">
+          <span>{error}</span>
+          <button className="text-button" onClick={() => void loadPayments()}>
+            Retry
+          </button>
+        </div>
+      )}
       <section className="panel payments-table-panel">
         <div className="panel-header">
           <div>
             <h2>Transactions</h2>
             <p>Every payment made through Shamsiya</p>
           </div>
-          <span className="panel-count">{rows.length} transactions</span>
+          <span className="panel-count">{rows.length} payments</span>
         </div>
         <div className="payments-toolbar">
           <label className="payments-search">
@@ -506,60 +638,103 @@ function PaymentsPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search transaction or customer"
+              placeholder="Search transaction, order, customer, or provider"
             />
           </label>
           <div className="payments-filters">
             <select
               value={status}
-              onChange={(e) => setStatus(e.target.value)}
+              onChange={(e) =>
+                setStatus(e.target.value as PaymentStatus | "all")
+              }
               aria-label="Payment status"
             >
-              <option>All statuses</option>
-              <option>Paid</option>
-              <option>Pending</option>
-              <option>Refunded</option>
+              <option value="all">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="successful">Successful</option>
+              <option value="failed">Failed</option>
+              <option value="refunded">Refunded</option>
             </select>
-            <select aria-label="Payment method">
-              <option>All methods</option>
-              <option>Visa</option>
-              <option>Mobile Money</option>
+            <select
+              value={method}
+              onChange={(e) =>
+                setMethod(e.target.value as PaymentMethod | "all")
+              }
+              aria-label="Payment method"
+            >
+              <option value="all">All methods</option>
+              <option value="cash">Cash</option>
+              <option value="mobile_money">Mobile Money</option>
+              <option value="card">Card</option>
             </select>
-            <button className="filter-button">
-              <Filter /> Filters
-            </button>
+            <select
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+              aria-label="Payment date range"
+            >
+              <option value="all">All dates</option>
+              <option value="today">Today</option>
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+            </select>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              aria-label="Sort payments"
+            >
+              <option value="created_desc">Newest first</option>
+              <option value="amount_desc">Amount: high to low</option>
+              <option value="amount_asc">Amount: low to high</option>
+              <option value="paid_desc">Paid date: newest</option>
+              <option value="paid_asc">Paid date: oldest</option>
+            </select>
           </div>
         </div>
         <div className="payments-table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Transaction</th>
+                <th>Transaction ID</th>
+                <th>Order</th>
                 <th>Customer</th>
                 <th>Amount</th>
                 <th>Payment method</th>
                 <th>Status</th>
-                <th>Date</th>
+                <th>Provider</th>
+                <th>Paid at</th>
+                <th>Created at</th>
                 <th />
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={row[0]} onClick={() => setSelected(row)}>
+              {rows.map((payment) => (
+                <tr key={payment.id} onClick={() => setSelected(payment)}>
                   <td>
-                    <button className="transaction-link">#{row[0]}</button>
+                    <button className="transaction-link" type="button">
+                      {payment.transaction_id ?? "N/A"}
+                    </button>
                   </td>
-                  <td>{row[1]}</td>
+                  <td>{payment.order?.order_number ?? payment.order_id}</td>
                   <td>
-                    <strong>{row[2]}</strong>
+                    {payment.customer?.full_name ??
+                      payment.customer?.email ??
+                      "Unknown customer"}
                   </td>
-                  <td>{row[3]}</td>
                   <td>
-                    <span className={`status-badge ${paymentStatus(row[4])}`}>
-                      {row[4]}
+                    <strong>{money(Number(payment.amount || 0))}</strong>
+                  </td>
+                  <td>{displayMethod(payment.method)}</td>
+                  <td>
+                    <span
+                      className={`status-badge ${statusClass(payment.status)}`}
+                    >
+                      {displayStatus(payment.status)}
                     </span>
                   </td>
-                  <td>{row[5]}</td>
+                  <td>{payment.provider ?? "N/A"}</td>
+                  <td>{date(payment.paid_at)}</td>
+                  <td>{date(payment.created_at)}</td>
                   <td>
                     <MoreHorizontal className="table-more" />
                   </td>
@@ -567,11 +742,24 @@ function PaymentsPage() {
               ))}
             </tbody>
           </table>
-          {rows.length === 0 && (
+          {!loading && rows.length === 0 && (
             <div className="empty-payments">
-              <Search />
-              <strong>No payments found</strong>
-              <span>Try a different search or status filter.</span>
+              <CreditCard />
+              <strong>
+                {paymentsData.length ? "No payments found" : "No payments yet"}
+              </strong>
+              <span>
+                {paymentsData.length
+                  ? "Try a different search or filter."
+                  : "Payment records will appear here when customers complete orders."}
+              </span>
+            </div>
+          )}
+          {loading && (
+            <div className="empty-payments">
+              <CreditCard />
+              <strong>Loading payments...</strong>
+              <span>Fetching the latest payment records.</span>
             </div>
           )}
         </div>
@@ -585,7 +773,7 @@ function PaymentsPage() {
             <div className="drawer-heading">
               <div>
                 <div className="eyebrow">Transaction details</div>
-                <h2>#{selected[0]}</h2>
+                <h2>{selected.transaction_id ?? "Payment details"}</h2>
               </div>
               <button
                 className="icon-button"
@@ -597,30 +785,66 @@ function PaymentsPage() {
             </div>
             <div className="payment-total">
               <span>Amount received</span>
-              <strong>{selected[2]}</strong>
-              <span className={`status-badge ${paymentStatus(selected[4])}`}>
-                {selected[4]}
+              <strong>{money(Number(selected.amount || 0))}</strong>
+              <span className={`status-badge ${statusClass(selected.status)}`}>
+                {displayStatus(selected.status)}
               </span>
             </div>
             <dl className="payment-details">
               <div>
                 <dt>Customer</dt>
-                <dd>{selected[1]}</dd>
+                <dd>{selected.customer?.full_name ?? "Unknown customer"}</dd>
               </div>
               <div>
                 <dt>Payment method</dt>
-                <dd>{selected[3]}</dd>
+                <dd>{displayMethod(selected.method)}</dd>
               </div>
               <div>
-                <dt>Processed</dt>
-                <dd>{selected[5]}</dd>
+                <dt>Payment ID</dt>
+                <dd>{selected.id}</dd>
+              </div>
+              <div>
+                <dt>Provider</dt>
+                <dd>{selected.provider ?? "N/A"}</dd>
+              </div>
+              <div>
+                <dt>Paid at</dt>
+                <dd>{date(selected.paid_at)}</dd>
+              </div>
+              <div>
+                <dt>Created at</dt>
+                <dd>{date(selected.created_at)}</dd>
+              </div>
+              <div>
+                <dt>Customer email</dt>
+                <dd>{selected.customer?.email ?? "N/A"}</dd>
+              </div>
+              <div>
+                <dt>Customer phone</dt>
+                <dd>{selected.customer?.phone ?? "N/A"}</dd>
               </div>
               <div>
                 <dt>Order</dt>
-                <dd>#{selected[0]}</dd>
+                <dd>{selected.order?.order_number ?? selected.order_id}</dd>
+              </div>
+              <div>
+                <dt>Order status</dt>
+                <dd>{selected.order?.status ?? "N/A"}</dd>
+              </div>
+              <div>
+                <dt>Order total</dt>
+                <dd>
+                  {selected.order?.total == null
+                    ? "N/A"
+                    : money(Number(selected.order.total))}
+                </dd>
+              </div>
+              <div>
+                <dt>Order date</dt>
+                <dd>{date(selected.order?.created_at ?? null)}</dd>
               </div>
             </dl>
-            <button className="primary-button drawer-action">
+            <button className="primary-button drawer-action" type="button">
               View order details <ChevronRight />
             </button>
           </aside>
