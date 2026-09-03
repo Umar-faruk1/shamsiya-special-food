@@ -31,6 +31,10 @@ export type NotificationInput = {
   is_read: boolean;
 };
 
+type NotificationQueryRow = Omit<NotificationWithRecipient, "recipient"> & {
+  recipient: NotificationRecipient[] | NotificationRecipient | null;
+};
+
 const notificationSelect = `
   id,
   user_id,
@@ -57,6 +61,17 @@ function notificationError(error: { code?: string; message?: string }) {
   return new Error(error.message || "Unable to manage notifications.");
 }
 
+function normalizeNotification(
+  row: NotificationQueryRow,
+): NotificationWithRecipient {
+  return {
+    ...row,
+    recipient: Array.isArray(row.recipient)
+      ? (row.recipient[0] ?? null)
+      : row.recipient,
+  };
+}
+
 export async function getNotifications(): Promise<NotificationWithRecipient[]> {
   const { data, error } = await supabase
     .from("notifications")
@@ -64,7 +79,9 @@ export async function getNotifications(): Promise<NotificationWithRecipient[]> {
     .order("created_at", { ascending: false });
 
   if (error) throw notificationError(error);
-  return (data ?? []) as NotificationWithRecipient[];
+  return (data ?? []).map((row) =>
+    normalizeNotification(row as NotificationQueryRow),
+  );
 }
 
 export async function getNotification(
@@ -77,10 +94,12 @@ export async function getNotification(
     .maybeSingle();
 
   if (error) throw notificationError(error);
-  return (data as NotificationWithRecipient | null) ?? null;
+  return data ? normalizeNotification(data as NotificationQueryRow) : null;
 }
 
-export async function getNotificationRecipients(): Promise<NotificationRecipient[]> {
+export async function getNotificationRecipients(): Promise<
+  NotificationRecipient[]
+> {
   const { data, error } = await supabase
     .from("profiles")
     .select("id, full_name, email, role")
@@ -105,10 +124,13 @@ export async function createNotification(input: NotificationInput) {
     .single();
 
   if (error) throw notificationError(error);
-  return data as NotificationWithRecipient;
+  return normalizeNotification(data as NotificationQueryRow);
 }
 
-export async function updateNotificationReadStatus(id: string, isRead: boolean) {
+export async function updateNotificationReadStatus(
+  id: string,
+  isRead: boolean,
+) {
   const { data, error } = await supabase
     .from("notifications")
     .update({ is_read: isRead })
@@ -117,7 +139,7 @@ export async function updateNotificationReadStatus(id: string, isRead: boolean) 
     .single();
 
   if (error) throw notificationError(error);
-  return data as NotificationWithRecipient;
+  return normalizeNotification(data as NotificationQueryRow);
 }
 
 export async function deleteNotification(id: string) {

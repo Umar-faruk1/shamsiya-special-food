@@ -1,24 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell,
   Check,
   Clock3,
   CreditCard,
+  Eye,
   Globe2,
   LockKeyhole,
   Mail,
   MapPin,
+  Plus,
+  Search,
   Save,
   Send,
   ShieldCheck,
   Smartphone,
+  Trash2,
   Truck,
   UserRound,
   X,
 } from "lucide-react";
 import ShamsiyaDashboard from "./shamsiya-dashboard";
+import {
+  createNotification,
+  deleteNotification,
+  getNotificationRecipients,
+  getNotifications,
+  updateNotificationReadStatus,
+  type NotificationRecipient,
+  type NotificationWithRecipient,
+} from "@/lib/services/notifications";
 
 const history = [
   [
@@ -94,9 +107,224 @@ function Toggle({
     </div>
   );
 }
+type NotificationFilter =
+  | "all"
+  | "read"
+  | "unread"
+  | "customer"
+  | "rider"
+  | "admin";
+
+function formatNotificationDate(value: string) {
+  return new Intl.DateTimeFormat("en-GH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function recipientLabel(recipient: NotificationRecipient | null) {
+  return recipient?.full_name || recipient?.email || "Unknown recipient";
+}
+
 function NotificationsPage() {
-  const [sent, setSent] = useState(false);
-  const [channel, setChannel] = useState("Push notification");
+  const [notifications, setNotifications] = useState<
+    NotificationWithRecipient[]
+  >([]);
+  const [recipients, setRecipients] = useState<NotificationRecipient[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [recipientLoading, setRecipientLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<NotificationFilter>("all");
+  const [showCreate, setShowCreate] = useState(false);
+  const [recipientQuery, setRecipientQuery] = useState("");
+  const [selected, setSelected] = useState<NotificationWithRecipient | null>(
+    null,
+  );
+  const [confirmDelete, setConfirmDelete] =
+    useState<NotificationWithRecipient | null>(null);
+  const [form, setForm] = useState({
+    user_id: "",
+    title: "",
+    message: "",
+    type: "",
+    related_id: "",
+  });
+
+  async function loadNotifications() {
+    setLoading(true);
+    setError("");
+    try {
+      setNotifications(await getNotifications());
+    } catch (loadError) {
+      console.error("[notifications] failed to load", loadError);
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Unable to load notifications.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadRecipients() {
+    setRecipientLoading(true);
+    try {
+      setRecipients(await getNotificationRecipients());
+    } catch (recipientError) {
+      console.error(
+        "[notifications] failed to load recipients",
+        recipientError,
+      );
+      setError(
+        recipientError instanceof Error
+          ? recipientError.message
+          : "Unable to load recipients.",
+      );
+    } finally {
+      setRecipientLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void Promise.all([loadNotifications(), loadRecipients()]);
+  }, []);
+
+  const filteredRecipients = recipients.filter((recipient) =>
+    `${recipient.full_name ?? ""} ${recipient.email ?? ""} ${recipient.role ?? ""}`
+      .toLowerCase()
+      .includes(recipientQuery.toLowerCase()),
+  );
+  const filteredNotifications = notifications.filter((notification) => {
+    const recipient = notification.recipient;
+    const searchable =
+      `${notification.title} ${notification.message} ${recipient?.full_name ?? ""} ${recipient?.email ?? ""}`.toLowerCase();
+    const roleMatches =
+      filter === "all" || filter === "read" || filter === "unread"
+        ? true
+        : recipient?.role?.toLowerCase() === filter;
+    const readMatches =
+      filter === "read"
+        ? notification.is_read
+        : filter === "unread"
+          ? !notification.is_read
+          : true;
+    return (
+      searchable.includes(query.toLowerCase()) && roleMatches && readMatches
+    );
+  });
+  const stats = {
+    total: notifications.length,
+    unread: notifications.filter((item) => !item.is_read).length,
+    read: notifications.filter((item) => item.is_read).length,
+    customers: notifications.filter(
+      (item) => item.recipient?.role?.toLowerCase() === "customer",
+    ).length,
+    riders: notifications.filter(
+      (item) => item.recipient?.role?.toLowerCase() === "rider",
+    ).length,
+  };
+
+  async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const title = form.title.trim();
+    const message = form.message.trim();
+    if (!form.user_id) return setError("Select a recipient.");
+    if (!title) return setError("Title is required.");
+    if (!message) return setError("Message is required.");
+    if (
+      form.related_id &&
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        form.related_id.trim(),
+      )
+    )
+      return setError("Related ID must be a valid UUID.");
+    setSaving(true);
+    setError("");
+    try {
+      const created = await createNotification({
+        user_id: form.user_id,
+        title,
+        message,
+        type: form.type || null,
+        related_id: form.related_id.trim() || null,
+        is_read: false,
+      });
+      setNotifications((current) => [created, ...current]);
+      setForm({
+        user_id: "",
+        title: "",
+        message: "",
+        type: "",
+        related_id: "",
+      });
+      setRecipientQuery("");
+      setShowCreate(false);
+      setNotice("Notification created successfully.");
+    } catch (createError) {
+      console.error("[notifications] failed to create", createError);
+      setError(
+        createError instanceof Error
+          ? createError.message
+          : "Unable to create notification.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleRead(notification: NotificationWithRecipient) {
+    try {
+      const updated = await updateNotificationReadStatus(
+        notification.id,
+        !notification.is_read,
+      );
+      setNotifications((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      );
+      setNotice(
+        updated.is_read
+          ? "Notification marked as read."
+          : "Notification marked as unread.",
+      );
+    } catch (updateError) {
+      console.error(
+        "[notifications] failed to update read status",
+        updateError,
+      );
+      setError(
+        updateError instanceof Error
+          ? updateError.message
+          : "Unable to update notification.",
+      );
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirmDelete) return;
+    setSaving(true);
+    try {
+      await deleteNotification(confirmDelete.id);
+      setNotifications((current) =>
+        current.filter((item) => item.id !== confirmDelete.id),
+      );
+      setConfirmDelete(null);
+      setNotice("Notification deleted successfully.");
+    } catch (deleteError) {
+      console.error("[notifications] failed to delete", deleteError);
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Unable to delete notification.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <ShamsiyaDashboard>
       <main className="main-content notifications-main">
@@ -106,147 +334,405 @@ function NotificationsPage() {
               <span className="live-dot" /> Customer communication
             </div>
             <h1>Notifications</h1>
-            <p>Keep your customers informed with thoughtful, timely updates.</p>
+            <p>
+              Manage notification records for customers, riders, and admins.
+            </p>
           </div>
-          <div className="ai-status">
-            <i /> Delivery service operational
+          <button
+            className="primary-button"
+            type="button"
+            onClick={() => {
+              setError("");
+              setShowCreate(true);
+            }}
+          >
+            <Plus /> Create notification
+          </button>
+        </div>
+        {notice && (
+          <div className="success-note notification-notice">
+            <Check /> {notice}
           </div>
-        </div>
-        <div className="notification-layout">
-          <section className="panel notification-composer">
-            <div className="panel-header">
-              <div>
-                <div className="eyebrow">SEND A NOTIFICATION</div>
-                <h2>Compose message</h2>
+        )}
+        {error && (
+          <div className="error-state notification-notice">
+            <strong>{error}</strong>
+          </div>
+        )}
+        <section className="stats-grid notification-stats">
+          {[
+            ["Total notifications", stats.total],
+            ["Unread notifications", stats.unread],
+            ["Read notifications", stats.read],
+            ["Customer notifications", stats.customers],
+            ["Rider notifications", stats.riders],
+          ].map(([label, value]) => (
+            <article className="stat-card" key={label}>
+              <div className="stat-head">
+                <span>{label}</span>
+                <Bell />
               </div>
-              <Bell />
-            </div>
-            <div className="notification-form">
-              <Field label="Notification title">
-                <input placeholder="e.g. Weekend Jollof Fiesta is live" />
-              </Field>
-              <Field label="Message">
-                <textarea
-                  rows={4}
-                  placeholder="Write a short, helpful message for your customers..."
-                />
-              </Field>
-              <div className="settings-form-grid">
-                <Field label="Audience">
-                  <select>
-                    <option>All customers</option>
-                    <option>Customers with active orders</option>
-                    <option>New customers</option>
-                    <option>Accra customers</option>
-                  </select>
-                </Field>
-                <Field label="Notification type">
-                  <select
-                    value={channel}
-                    onChange={(e) => setChannel(e.target.value)}
-                  >
-                    <option>Push notification</option>
-                    <option>Email</option>
-                    <option>SMS</option>
-                  </select>
-                </Field>
-              </div>
-              <div className="channel-note">
-                <Smartphone /> This message will be delivered as a{" "}
-                {channel.toLowerCase()}.
-              </div>
-              <div className="food-form-footer">
-                <button
-                  className="secondary-button"
-                  onClick={() => setSent(false)}
-                >
-                  Save draft
-                </button>
-                <button
-                  className="primary-button"
-                  onClick={() => setSent(true)}
-                >
-                  <Send />
-                  Send notification
-                </button>
-              </div>
-              {sent && (
-                <div className="success-note">
-                  <Check /> Notification queued successfully. Your audience will
-                  receive it shortly.
-                </div>
-              )}
-            </div>
-          </section>
-          <section className="panel notification-tips">
-            <div className="panel-header">
-              <div>
-                <div className="eyebrow">DELIVERY TIPS</div>
-                <h2>Reach guests thoughtfully</h2>
-              </div>
-              <Mail />
-            </div>
-            <div className="tip-list">
-              <div>
-                <strong>Keep it concise</strong>
-                <span>Short messages are easier to read on the go.</span>
-              </div>
-              <div>
-                <strong>Choose the right audience</strong>
-                <span>Personalised updates create better engagement.</span>
-              </div>
-              <div>
-                <strong>Send at the right time</strong>
-                <span>
-                  Lunch and early evening are your most active windows.
-                </span>
-              </div>
-            </div>
-          </section>
-        </div>
+              <strong className="stat-value">{value}</strong>
+            </article>
+          ))}
+        </section>
         <section className="panel notification-history">
           <div className="panel-header">
             <div>
-              <div className="eyebrow">RECENT ACTIVITY</div>
-              <h2>Notification history</h2>
+              <div className="eyebrow">NOTIFICATION RECORDS</div>
+              <h2>All notifications</h2>
             </div>
-            <span className="panel-count">{history.length} messages</span>
+            <span className="panel-count">
+              {filteredNotifications.length} shown
+            </span>
           </div>
-          <div className="settings-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Message</th>
-                  <th>Type</th>
-                  <th>Audience</th>
-                  <th>Sent</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((row) => (
-                  <tr key={row[0]}>
-                    {row.map((cell, index) => (
-                      <td key={cell}>
-                        {index === 4 ? (
-                          <span
-                            className={`status-badge ${cell === "Delivered" ? "status-success" : "status-info"}`}
-                          >
-                            <span />
-                            {cell}
-                          </span>
-                        ) : (
-                          cell
-                        )}
-                      </td>
-                    ))}
+          <div className="notification-toolbar">
+            <label className="notification-search">
+              <Search />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search title, message, name, or email"
+              />
+            </label>
+            <div className="notification-filters">
+              {(
+                [
+                  ["all", "All"],
+                  ["read", "Read"],
+                  ["unread", "Unread"],
+                  ["customer", "Customers"],
+                  ["rider", "Riders"],
+                  ["admin", "Admins"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  type="button"
+                  key={value}
+                  className={filter === value ? "filter-active" : ""}
+                  onClick={() => setFilter(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {loading ? (
+            <div className="settings-section">
+              <div className="loading-state">Loading notifications...</div>
+            </div>
+          ) : filteredNotifications.length === 0 ? (
+            <div className="panel empty-state">
+              <Bell />
+              <strong>
+                {notifications.length === 0
+                  ? "No notifications yet"
+                  : "No matching notifications"}
+              </strong>
+              <span>
+                {notifications.length === 0
+                  ? "Create a notification to begin managing customer communication."
+                  : "Try a different search or filter."}
+              </span>
+            </div>
+          ) : (
+            <div className="settings-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Recipient</th>
+                    <th>Notification</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filteredNotifications.map((notification) => (
+                    <tr key={notification.id}>
+                      <td>
+                        <strong>
+                          {recipientLabel(notification.recipient)}
+                        </strong>
+                        <small>
+                          {notification.recipient?.email ?? ""} ·{" "}
+                          {notification.recipient?.role ?? "Unknown role"}
+                        </small>
+                      </td>
+                      <td>
+                        <strong>{notification.title}</strong>
+                        <small>{notification.message}</small>
+                      </td>
+                      <td>{notification.type || "General"}</td>
+                      <td>
+                        <span
+                          className={`status-badge ${notification.is_read ? "status-success" : "status-info"}`}
+                        >
+                          <span />
+                          {notification.is_read ? "Read" : "Unread"}
+                        </span>
+                      </td>
+                      <td>{formatNotificationDate(notification.created_at)}</td>
+                      <td>
+                        <div className="table-actions">
+                          <button
+                            className="icon-button"
+                            type="button"
+                            title="View details"
+                            onClick={() => setSelected(notification)}
+                          >
+                            <Eye />
+                          </button>
+                          <button
+                            className="icon-button"
+                            type="button"
+                            title={
+                              notification.is_read ? "Mark unread" : "Mark read"
+                            }
+                            onClick={() => void toggleRead(notification)}
+                          >
+                            <Check />
+                          </button>
+                          <button
+                            className="icon-button"
+                            type="button"
+                            title="Delete notification"
+                            onClick={() => setConfirmDelete(notification)}
+                          >
+                            <Trash2 />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       </main>
+      {showCreate && (
+        <div className="modal-layer" onClick={() => setShowCreate(false)}>
+          <div
+            className="assign-modal notification-modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="drawer-heading">
+              <div>
+                <div className="eyebrow">NEW RECORD</div>
+                <h2>Create notification</h2>
+              </div>
+              <button
+                className="icon-button"
+                type="button"
+                title="Close"
+                onClick={() => setShowCreate(false)}
+              >
+                <X />
+              </button>
+            </div>
+            <form className="notification-form" onSubmit={handleCreate}>
+              <Field label="Recipient">
+                <input
+                  placeholder="Search name, email, or role"
+                  value={recipientQuery}
+                  onChange={(event) => setRecipientQuery(event.target.value)}
+                />
+                {recipientLoading ? (
+                  <small>Loading recipients...</small>
+                ) : (
+                  <select
+                    required
+                    value={form.user_id}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        user_id: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">Select a recipient</option>
+                    {filteredRecipients.map((recipient) => (
+                      <option key={recipient.id} value={recipient.id}>
+                        {recipientLabel(recipient)} · {recipient.email ?? ""} ·{" "}
+                        {recipient.role ?? ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Field>
+              <Field label="Title">
+                <input
+                  required
+                  value={form.title}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      title: event.target.value,
+                    }))
+                  }
+                />
+              </Field>
+              <Field label="Message">
+                <textarea
+                  required
+                  rows={4}
+                  value={form.message}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      message: event.target.value,
+                    }))
+                  }
+                />
+              </Field>
+              <div className="settings-form-grid">
+                <Field label="Type">
+                  <select
+                    value={form.type}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        type: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">None</option>
+                    {[
+                      "order",
+                      "promotion",
+                      "payment",
+                      "delivery",
+                      "system",
+                      "general",
+                    ].map((type) => (
+                      <option key={type}>{type}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Related ID (optional)">
+                  <input
+                    value={form.related_id}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        related_id: event.target.value,
+                      }))
+                    }
+                  />
+                </Field>
+              </div>
+              <div className="confirm-modal-actions">
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => setShowCreate(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="primary-button"
+                  type="submit"
+                  disabled={saving}
+                >
+                  <Send />
+                  {saving ? "Creating..." : "Create notification"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {selected && (
+        <div className="modal-layer" onClick={() => setSelected(null)}>
+          <aside
+            className="order-drawer"
+            role="dialog"
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="drawer-heading">
+              <div>
+                <div className="eyebrow">NOTIFICATION DETAILS</div>
+                <h2>{selected.title}</h2>
+              </div>
+              <button
+                className="icon-button"
+                type="button"
+                title="Close"
+                onClick={() => setSelected(null)}
+              >
+                <X />
+              </button>
+            </div>
+            <div className="drawer-block">
+              <h3>Recipient</h3>
+              <p className="drawer-line">
+                {recipientLabel(selected.recipient)}
+              </p>
+              <p className="drawer-note">
+                {selected.recipient?.email ?? "No email"} ·{" "}
+                {selected.recipient?.role ?? "Unknown role"}
+              </p>
+            </div>
+            <div className="drawer-block">
+              <h3>Message</h3>
+              <p className="drawer-note">{selected.message}</p>
+            </div>
+            <div className="drawer-block">
+              <h3>Record</h3>
+              <p className="drawer-note">
+                Type: {selected.type || "None"}
+                <br />
+                Related ID: {selected.related_id || "None"}
+                <br />
+                Status: {selected.is_read ? "Read" : "Unread"}
+                <br />
+                Created: {formatNotificationDate(selected.created_at)}
+              </p>
+            </div>
+          </aside>
+        </div>
+      )}
+      {confirmDelete && (
+        <div className="modal-layer" onClick={() => setConfirmDelete(null)}>
+          <div
+            className="confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="confirm-modal-head">
+              <Trash2 />
+              <h3>Delete notification?</h3>
+            </div>
+            <p className="modal-copy">
+              This notification will be permanently removed.
+            </p>
+            <div className="confirm-modal-actions">
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setConfirmDelete(null)}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={saving}
+              >
+                {saving ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </ShamsiyaDashboard>
   );
 }

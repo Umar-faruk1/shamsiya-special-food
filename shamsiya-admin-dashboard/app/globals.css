@@ -888,6 +888,82 @@ button:disabled {
   gap: 14px;
   margin-bottom: 17px;
 }
+.notification-stats {
+  grid-template-columns: repeat(5, 1fr);
+}
+.notification-notice {
+  margin-bottom: 17px;
+}
+.notification-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid #f0ebe5;
+  padding: 14px 20px;
+}
+.notification-search {
+  display: flex;
+  min-width: 220px;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #e4dcd3;
+  border-radius: 7px;
+  background: #fffdfa;
+  padding: 9px 10px;
+  color: #a18f82;
+}
+.notification-search svg {
+  height: 15px;
+  width: 15px;
+}
+.notification-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #594238;
+  font: inherit;
+  font-size: 11px;
+}
+.notification-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.notification-filters button {
+  border: 1px solid #e4dcd3;
+  border-radius: 6px;
+  background: #fffdfa;
+  padding: 8px 10px;
+  color: #8f7d70;
+  font-size: 10px;
+}
+.notification-filters button:hover,
+.notification-filters .filter-active {
+  border-color: #bd7338;
+  background: #f6e9dc;
+  color: #70452f;
+}
+.notification-history td strong,
+.notification-history td small {
+  display: block;
+}
+.notification-history td small {
+  margin-top: 4px;
+  color: #a18f82;
+  font-size: 9px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+.table-actions {
+  display: flex;
+  gap: 3px;
+}
+.notification-modal {
+  width: min(610px, calc(100vw - 32px));
+}
 .stat-card,
 .panel {
   border: 1px solid #e9e2d9;
@@ -6670,6 +6746,13 @@ td small {
   color: #5d8d65;
 }
 @media (max-width: 950px) {
+  .notification-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .notification-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
   .notification-layout {
     grid-template-columns: 1fr;
   }
@@ -6695,6 +6778,9 @@ td small {
   }
 }
 @media (max-width: 600px) {
+  .notification-stats {
+    grid-template-columns: 1fr 1fr;
+  }
   .settings-form-grid {
     grid-template-columns: 1fr;
   }
