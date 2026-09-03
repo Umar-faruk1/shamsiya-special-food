@@ -919,7 +919,9 @@ export function OrdersContent() {
             <Search />
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event: { target: { value: any } }) =>
+                setQuery(event.target.value)
+              }
               placeholder="Search by order, customer, food, or rider..."
               aria-label="Search orders"
             />
