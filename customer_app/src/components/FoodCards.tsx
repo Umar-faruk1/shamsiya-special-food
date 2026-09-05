@@ -57,7 +57,9 @@ export const FoodCard: React.FC<FoodCardProps> = ({
           ) : null}
           {food.isHalal ? (
             <View className="px-1.5 py-0.5 rounded-full bg-[#16A34A] self-start">
-              <Text className="text-[9px] font-bold text-white">100% Halal</Text>
+              <Text className="text-[9px] font-bold text-white">
+                100% Halal
+              </Text>
             </View>
           ) : null}
         </View>
@@ -90,7 +92,13 @@ export const FoodCard: React.FC<FoodCardProps> = ({
           {food.spicyLevel > 0 ? (
             <View className="flex-row items-center gap-0.5 bg-black/40 px-2 py-0.5 rounded-full">
               {Array.from({ length: food.spicyLevel }).map((_, i) => (
-                <Flame key={i} width={11} height={11} color="#FBBF24" fill="#FBBF24" />
+                <Flame
+                  key={i}
+                  width={11}
+                  height={11}
+                  color="#FBBF24"
+                  fill="#FBBF24"
+                />
               ))}
             </View>
           ) : null}
@@ -104,7 +112,10 @@ export const FoodCard: React.FC<FoodCardProps> = ({
         </Text>
 
         {food.nativeName ? (
-          <Text numberOfLines={1} className="text-[11px] text-[#8E7668] font-medium mb-1">
+          <Text
+            numberOfLines={1}
+            className="text-[11px] text-[#8E7668] font-medium mb-1"
+          >
             {food.nativeName}
           </Text>
         ) : null}
@@ -167,7 +178,9 @@ export const HorizontalFoodCard: React.FC<FoodCardProps> = ({
         />
         {food.isChefSpecial ? (
           <View className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md bg-[#E86A17]">
-            <Text className="text-[8px] font-extrabold text-white">Special</Text>
+            <Text className="text-[8px] font-extrabold text-white">
+              Special
+            </Text>
           </View>
         ) : null}
       </View>
@@ -175,7 +188,10 @@ export const HorizontalFoodCard: React.FC<FoodCardProps> = ({
       {/* Details */}
       <View className="flex-1 pr-1">
         <View className="flex-row items-start justify-between gap-1">
-          <Text numberOfLines={1} className="text-xs font-bold text-[#2D1810] flex-1">
+          <Text
+            numberOfLines={1}
+            className="text-xs font-bold text-[#2D1810] flex-1"
+          >
             {food.name}
           </Text>
           {onToggleFavorite ? (
@@ -230,7 +246,13 @@ export const FoodGrid: React.FC<{
   onAddToCart?: (food: FoodItem) => void;
   favorites?: string[];
   onToggleFavorite?: (food: FoodItem) => void;
-}> = ({ foods, onSelectFood, onAddToCart, favorites = [], onToggleFavorite }) => {
+}> = ({
+  foods,
+  onSelectFood,
+  onAddToCart,
+  favorites = [],
+  onToggleFavorite,
+}) => {
   const rows: FoodItem[][] = [];
   for (let i = 0; i < foods.length; i += 2) {
     rows.push(foods.slice(i, i + 2));

@@ -29,7 +29,12 @@ export const FloatingCameraButton: React.FC<FloatingCameraButtonProps> = ({
       >
         <LinearGradient
           colors={["#FFA028", "#E86A17", "#D97706"]}
-          style={{ position: "absolute", width: "100%", height: "100%", borderRadius: 999 }}
+          style={{
+            position: "absolute",
+            width: "100%",
+            height: "100%",
+            borderRadius: 999,
+          }}
         />
         <View className="absolute top-1 right-2">
           <Sparkles width={12} height={12} color="#FDE68A" />
