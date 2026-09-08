@@ -34,7 +34,7 @@ const availableOptions = [
 // Direct port of ProfileScreen.tsx
 export default function ProfileScreen() {
   const navigation = useRouter();
-  const { user, setUser, favorites, setIsAuthenticated, showToast } = useApp();
+  const { user, setUser, favorites, signOut, showToast } = useApp();
 
   const [isDietaryModalOpen, setIsDietaryModalOpen] = useState(false);
   const [selectedPreferences, setSelectedPreferences] = useState<string[]>(
@@ -257,8 +257,12 @@ export default function ProfileScreen() {
 
         {/* LOGOUT */}
         <Pressable
-          onPress={() => {
-            setIsAuthenticated(false);
+          onPress={async () => {
+            const error = await signOut();
+            if (error) {
+              showToast(error);
+              return;
+            }
             navigation.replace("/(auth)/login");
           }}
           className="flex-row items-center justify-center gap-2 p-3.5 rounded-2xl bg-white border border-red-200"

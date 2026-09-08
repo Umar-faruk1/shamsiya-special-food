@@ -24,7 +24,7 @@ import { useApp } from "../../context/AppContext";
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { setIsAuthenticated, setUser } = useApp();
+  const { signUp } = useApp();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -36,7 +36,7 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!fullName.trim() || !email.trim() || !phone.trim() || !password) {
       setErrorMessage("Please fill out all required fields.");
       return;
@@ -53,12 +53,22 @@ export default function RegisterScreen() {
     setErrorMessage(null);
     setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
-      setUser((prev) => ({ ...prev, name: fullName, email, phone }));
-      setIsAuthenticated(true);
+    const result = await signUp({ email, password, fullName, phone });
+    setLoading(false);
+    if (result.error) {
+      setErrorMessage(result.error);
+      return;
+    }
+
+    if (result.requiresConfirmation) {
+      setErrorMessage(
+        "Account created. Please confirm your email before logging in.",
+      );
       router.replace("/(auth)/login");
-    }, 750);
+      return;
+    }
+
+    router.replace("/(auth)/location-setup");
   };
 
   const Field = ({

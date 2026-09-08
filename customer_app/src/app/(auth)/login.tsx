@@ -13,21 +13,18 @@ import { useRouter } from "expo-router";
 import { PrimaryButton } from "../../components/Buttons";
 import { useApp } from "../../context/AppContext";
 
-const DUMMY_EMAIL = "umarfarukmahama@gmail.com";
-const DUMMY_PASSWORD = "shamsiya123";
-
 export default function LoginScreen() {
   const router = useRouter();
-  const { setIsAuthenticated } = useApp();
+  const { signIn } = useApp();
 
-  const [identifier, setIdentifier] = useState("umarfarukmahama@gmail.com");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!identifier.trim()) {
       setErrorMessage("Please enter your email or phone number.");
       return;
@@ -38,32 +35,22 @@ export default function LoginScreen() {
       return;
     }
 
-    if (
-      identifier.trim().toLowerCase() !== DUMMY_EMAIL ||
-      password !== DUMMY_PASSWORD
-    ) {
-      setErrorMessage(
-        `Use ${DUMMY_EMAIL} and ${DUMMY_PASSWORD} for the demo login.`,
-      );
+    setErrorMessage(null);
+    setLoading(true);
+    const error = await signIn(identifier, password);
+    setLoading(false);
+    if (error) {
+      setErrorMessage(error);
       return;
     }
 
-    setErrorMessage(null);
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setIsAuthenticated(true);
-      router.replace("/(auth)/location-setup");
-    }, 700);
+    router.replace("/(auth)/location-setup");
   };
 
   const handleGoogleLogin = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setIsAuthenticated(true);
-      router.replace("/(auth)/location-setup");
-    }, 600);
+    setErrorMessage(
+      "Google sign-in is not available yet. Please use email and password.",
+    );
   };
 
   return (
@@ -111,13 +98,13 @@ export default function LoginScreen() {
             {/* Email / Phone Field */}
             <View className="gap-1.5">
               <Text className="text-xs font-bold text-[#2D1810]">
-                Email or Phone Number
+                Email Address
               </Text>
               <View className="relative flex-row items-center">
                 <TextInput
                   value={identifier}
                   onChangeText={setIdentifier}
-                  placeholder="name@example.com or +233..."
+                  placeholder="name@example.com"
                   placeholderTextColor="rgba(142,118,104,0.6)"
                   autoCapitalize="none"
                   className="w-full px-4 py-3 rounded-2xl bg-white border border-[#613D2D]/15 text-xs text-[#2D1810] font-medium pr-10"

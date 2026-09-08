@@ -9,14 +9,14 @@ import { ToastHost } from "../components/ToastHost";
 import { useApp } from "../context/AppContext";
 
 function AuthGuard() {
-  const { isAuthenticated } = useApp();
+  const { isAuthenticated, authLoading } = useApp();
   const router = useRouter();
   const segments = useSegments();
   const firstSegment = segments[0];
   const currentRoute = segments[1];
 
   useEffect(() => {
-    if (firstSegment === undefined) return;
+    if (firstSegment === undefined || authLoading) return;
 
     const isAuthRoute = firstSegment === "(auth)";
     const isLocationSetup = isAuthRoute && currentRoute === "location-setup";
@@ -26,7 +26,7 @@ function AuthGuard() {
     } else if (isAuthenticated && isAuthRoute && !isLocationSetup) {
       router.replace(currentRoute === "login" ? "/(auth)/location-setup" : "/");
     }
-  }, [currentRoute, firstSegment, isAuthenticated, router]);
+  }, [authLoading, currentRoute, firstSegment, isAuthenticated, router]);
 
   return null;
 }
