@@ -216,7 +216,7 @@ export default function OrderTrackingScreen() {
                 Order #{order.orderNumber} Receipt
               </Text>
               <Text className="text-[10px] text-[#8E7668]">
-                {order.items.length} items • ${order.total.toFixed(2)} total
+                {order.items.length} items • ₵{order.total.toFixed(2)} total
               </Text>
             </View>
             {showItems ? (
@@ -242,7 +242,7 @@ export default function OrderTrackingScreen() {
                     </Text>
                   </View>
                   <Text className="font-bold text-[#2D1810] text-xs">
-                    ${it.itemTotalPrice.toFixed(2)}
+                    ₵{it.itemTotalPrice.toFixed(2)}
                   </Text>
                 </View>
               ))}
@@ -251,7 +251,7 @@ export default function OrderTrackingScreen() {
                 <View className="flex-row justify-between">
                   <Text className="text-xs text-[#613D2D]">Subtotal</Text>
                   <Text className="text-xs text-[#613D2D]">
-                    ${order.subtotal.toFixed(2)}
+                    ₵{order.subtotal.toFixed(2)}
                   </Text>
                 </View>
                 <View className="flex-row justify-between">
@@ -259,14 +259,14 @@ export default function OrderTrackingScreen() {
                     Delivery & Fees
                   </Text>
                   <Text className="text-xs text-[#613D2D]">
-                    ${(order.deliveryFee + order.tax).toFixed(2)}
+                    ₵{(order.deliveryFee + order.tax).toFixed(2)}
                   </Text>
                 </View>
                 {order.tip ? (
                   <View className="flex-row justify-between">
                     <Text className="text-xs text-[#613D2D]">Rider Tip</Text>
                     <Text className="text-xs text-[#613D2D]">
-                      ${order.tip.toFixed(2)}
+                      ₵{order.tip.toFixed(2)}
                     </Text>
                   </View>
                 ) : null}
@@ -275,7 +275,7 @@ export default function OrderTrackingScreen() {
                     Total Paid
                   </Text>
                   <Text className="font-black text-sm text-[#E86A17]">
-                    ${order.total.toFixed(2)}
+                    ₵{order.total.toFixed(2)}
                   </Text>
                 </View>
               </View>

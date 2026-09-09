@@ -199,7 +199,7 @@ export default function FavoritesScreen() {
 
                         <View className="flex-row items-center justify-between pt-1 border-t border-neutral-100">
                           <Text className="text-sm font-black text-[#2D1810]">
-                            ${food.price.toFixed(2)}
+                            ₵{food.price.toFixed(2)}
                           </Text>
                           <Pressable
                             onPress={() => handleAddToCartQuick(food)}

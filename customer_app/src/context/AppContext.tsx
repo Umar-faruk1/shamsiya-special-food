@@ -7,14 +7,13 @@ import React, {
 } from "react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import {
-  MOCK_CATEGORIES,
-  MOCK_FOOD_ITEMS,
   MOCK_ORDERS,
   MOCK_USER,
   MOCK_NOTIFICATIONS,
   MOCK_RECENT_SCANS,
   MOCK_RIDER,
 } from "../data/mockData";
+import { fetchMenuData } from "../api/menu";
 import {
   FoodItem,
   CartItem,
@@ -24,6 +23,7 @@ import {
   UserAddress,
   PaymentMethod,
   FoodOptionAddon,
+  Category,
 } from "../types";
 import { supabase } from "../api/supabase";
 
@@ -44,7 +44,10 @@ interface CartOptions {
 interface AppContextValue {
   // Domain data
   foodItems: FoodItem[];
-  categories: typeof MOCK_CATEGORIES;
+  categories: Category[];
+  menuLoading: boolean;
+  menuError: string | null;
+  refreshMenu: () => Promise<void>;
   user: UserProfile;
   setUser: React.Dispatch<React.SetStateAction<UserProfile>>;
   cartItems: CartItem[];
@@ -108,8 +111,10 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [foodItems] = useState<FoodItem[]>(MOCK_FOOD_ITEMS);
-  const [categories] = useState(MOCK_CATEGORIES);
+  const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [menuLoading, setMenuLoading] = useState(true);
+  const [menuError, setMenuError] = useState<string | null>(null);
   const [user, setUser] = useState<UserProfile>(MOCK_USER);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
@@ -130,6 +135,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [authUser, setAuthUser] = useState<SupabaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const refreshMenu = useCallback(async () => {
+    setMenuLoading(true);
+    setMenuError(null);
+    try {
+      const menu = await fetchMenuData();
+      setCategories(menu.categories);
+      setFoodItems(menu.foodItems);
+    } catch (error) {
+      console.error("Unable to load menu data:", error);
+      setMenuError("We could not load the menu right now. Please try again.");
+    } finally {
+      setMenuLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshMenu();
+  }, [refreshMenu]);
 
   const getAuthErrorMessage = useCallback((message: string) => {
     const normalized = message.toLowerCase();
@@ -593,6 +617,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const value: AppContextValue = {
     foodItems,
     categories,
+    menuLoading,
+    menuError,
+    refreshMenu,
     user,
     setUser,
     cartItems,

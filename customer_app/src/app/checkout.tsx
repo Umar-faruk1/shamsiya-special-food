@@ -247,7 +247,7 @@ export default function CheckoutScreen() {
                     selectedTip === tip ? "text-white" : "text-[#2D1810]"
                   }`}
                 >
-                  {tip === 0 ? "No tip" : `$${tip}`}
+                  {tip === 0 ? "No tip" : `₵${tip}`}
                 </Text>
               </Pressable>
             ))}
@@ -264,26 +264,26 @@ export default function CheckoutScreen() {
               Food Subtotal ({cartItems.length} items)
             </Text>
             <Text className="text-xs font-bold text-[#2D1810]">
-              ${subtotal.toFixed(2)}
+              ₵{subtotal.toFixed(2)}
             </Text>
           </View>
           <View className="flex-row justify-between">
             <Text className="text-xs text-[#613D2D]">Delivery Fee</Text>
             <Text className="text-xs font-bold text-[#2D1810]">
-              ${deliveryFee.toFixed(2)}
+              ₵{deliveryFee.toFixed(2)}
             </Text>
           </View>
           <View className="flex-row justify-between">
             <Text className="text-xs text-[#613D2D]">Service Fee</Text>
             <Text className="text-xs font-bold text-[#2D1810]">
-              ${serviceFee.toFixed(2)}
+              ₵{serviceFee.toFixed(2)}
             </Text>
           </View>
           {selectedTip > 0 ? (
             <View className="flex-row justify-between">
               <Text className="text-xs text-[#613D2D]">Rider Tip</Text>
               <Text className="text-xs font-bold text-[#2D1810]">
-                ${selectedTip.toFixed(2)}
+                ₵{selectedTip.toFixed(2)}
               </Text>
             </View>
           ) : null}
@@ -292,7 +292,7 @@ export default function CheckoutScreen() {
               Total Payable
             </Text>
             <Text className="text-xl font-black text-[#E86A17]">
-              ${total.toFixed(2)}
+              ₵{total.toFixed(2)}
             </Text>
           </View>
         </View>
@@ -305,7 +305,7 @@ export default function CheckoutScreen() {
           onPress={handleConfirmOrder}
           icon={<Lock width={16} height={16} color="#fff" />}
         >
-          Place Order • ${total.toFixed(2)}
+          Place Order • ₵{total.toFixed(2)}
         </PrimaryButton>
 
         <View className="flex-row items-center justify-center gap-1">

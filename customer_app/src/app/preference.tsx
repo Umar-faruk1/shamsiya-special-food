@@ -16,9 +16,9 @@ import { useApp } from "../context/AppContext";
 
 type SpicePref = "Mild" | "Medium" | "Spicy / Peppery" | "Fiery Hot";
 type BudgetPref =
-  | "Budget-Friendly (Under $12)"
-  | "Mid-Range ($12 - $18)"
-  | "Chef Premium ($18+)";
+  | "Budget-Friendly (Under ₵12)"
+  | "Mid-Range (₵12 - ₵18)"
+  | "Chef Premium (₵18+)";
 
 const cuisineOptions = [
   "West African",
@@ -57,9 +57,9 @@ const dietaryOptions = [
 ];
 
 const budgetOptions: BudgetPref[] = [
-  "Budget-Friendly (Under $12)",
-  "Mid-Range ($12 - $18)",
-  "Chef Premium ($18+)",
+  "Budget-Friendly (Under ₵12)",
+  "Mid-Range (₵12 - ₵18)",
+  "Chef Premium (₵18+)",
 ];
 
 // Direct port of PreferencesScreen.tsx
@@ -83,7 +83,7 @@ export default function PreferencesScreen() {
       ? user.dietaryPreferences
       : ["100% Halal Only", "High Protein"],
   );
-  const [budget, setBudget] = useState<BudgetPref>("Mid-Range ($12 - $18)");
+  const [budget, setBudget] = useState<BudgetPref>("Mid-Range (₵12 - ₵18)");
   const [savedToast, setSavedToast] = useState(false);
 
   const toggleItem = (

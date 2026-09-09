@@ -25,15 +25,24 @@ export const AIRecommendationCard: React.FC<{
 
       <View className="flex-row items-center gap-1.5 bg-[#E86A17]/20 border border-[#E86A17]/40 px-2.5 py-1 rounded-full mb-2.5 self-start">
         <Sparkles width={12} height={12} color="#E86A17" />
-        <Text numberOfLines={1} className="text-[10px] text-amber-200 font-semibold">
+        <Text
+          numberOfLines={1}
+          className="text-[10px] text-amber-200 font-semibold"
+        >
           {reason}
         </Text>
       </View>
 
       <View className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden mb-2 bg-neutral-800">
-        <Image source={{ uri: food.image }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+        <Image
+          source={{ uri: food.image }}
+          style={{ width: "100%", height: "100%" }}
+          resizeMode="cover"
+        />
         <View className="absolute top-2 right-2 bg-black/60 px-2 py-0.5 rounded-full">
-          <Text className="text-[10px] font-bold text-white">${food.price.toFixed(2)}</Text>
+          <Text className="text-[10px] font-bold text-white">
+            ₵{food.price.toFixed(2)}
+          </Text>
         </View>
       </View>
 
@@ -95,13 +104,18 @@ export const AIChatBubble: React.FC<{
         )}
       </View>
 
-      <View className={`flex-1 gap-1 ${isUser ? "items-end" : "items-start"}`} style={{ maxWidth: "85%" }}>
+      <View
+        className={`flex-1 gap-1 ${isUser ? "items-end" : "items-start"}`}
+        style={{ maxWidth: "85%" }}
+      >
         <View
           className={`p-3.5 rounded-3xl ${
             isUser ? "bg-[#2D1810]" : "bg-white border border-[#613D2D]/12"
           }`}
         >
-          <Text className={`text-xs leading-relaxed ${isUser ? "text-white" : "text-[#2D1810]"}`}>
+          <Text
+            className={`text-xs leading-relaxed ${isUser ? "text-white" : "text-[#2D1810]"}`}
+          >
             {message.text}
           </Text>
         </View>
@@ -123,11 +137,14 @@ export const AIChatBubble: React.FC<{
                   style={{ width: 48, height: 48, borderRadius: 12 }}
                 />
                 <View className="flex-1">
-                  <Text numberOfLines={1} className="text-[11px] font-bold text-[#2D1810]">
+                  <Text
+                    numberOfLines={1}
+                    className="text-[11px] font-bold text-[#2D1810]"
+                  >
                     {dish.name}
                   </Text>
                   <Text className="text-[10px] text-[#8E7668]">
-                    ${dish.price.toFixed(2)} • {dish.calories} kcal
+                    ₵{dish.price.toFixed(2)} • {dish.calories} kcal
                   </Text>
                 </View>
                 {onAddToCart ? (
@@ -136,7 +153,9 @@ export const AIChatBubble: React.FC<{
                     className="px-2.5 py-1 rounded-xl bg-[#F4EFE6] flex-row items-center gap-1"
                   >
                     <Plus width={12} height={12} color="#2D1810" />
-                    <Text className="text-[10px] font-bold text-[#2D1810]">Add</Text>
+                    <Text className="text-[10px] font-bold text-[#2D1810]">
+                      Add
+                    </Text>
                   </Pressable>
                 ) : null}
               </Pressable>
@@ -152,7 +171,9 @@ export const AIChatBubble: React.FC<{
                 onPress={() => onQuickAction?.(qa.action, qa.payload)}
                 className="px-2.5 py-1 rounded-full bg-[#F4EFE6] border border-[#613D2D]/15"
               >
-                <Text className="text-[10px] font-semibold text-[#2D1810]">{qa.label}</Text>
+                <Text className="text-[10px] font-semibold text-[#2D1810]">
+                  {qa.label}
+                </Text>
               </Pressable>
             ))}
           </View>
@@ -176,7 +197,10 @@ export const FoodRecognitionResult: React.FC<{
             <Zap width={16} height={16} color="#059669" />
           </View>
           <View className="flex-1">
-            <Text numberOfLines={1} className="text-sm font-extrabold text-[#2D1810]">
+            <Text
+              numberOfLines={1}
+              className="text-sm font-extrabold text-[#2D1810]"
+            >
               {result.recognizedDishName}
             </Text>
             <Text className="text-[11px] text-[#8E7668] font-medium">
@@ -186,7 +210,9 @@ export const FoodRecognitionResult: React.FC<{
         </View>
 
         <View className="items-end">
-          <Text className="text-xs font-black text-emerald-600">{result.confidence}%</Text>
+          <Text className="text-xs font-black text-emerald-600">
+            {result.confidence}%
+          </Text>
           <Text className="text-[9px] uppercase font-bold text-neutral-400">
             Match Confidence
           </Text>
@@ -200,13 +226,18 @@ export const FoodRecognitionResult: React.FC<{
           style={{ width: 80, height: 80, borderRadius: 12 }}
         />
         <View className="flex-1 gap-1">
-          <Text numberOfLines={3} className="text-xs text-[#613D2D] leading-relaxed">
+          <Text
+            numberOfLines={3}
+            className="text-xs text-[#613D2D] leading-relaxed"
+          >
             {result.description}
           </Text>
           <View className="flex-row flex-wrap gap-1 pt-1">
             {result.flavorProfile?.map((flavor, i) => (
               <View key={i} className="px-2 py-0.5 rounded-md bg-[#F4EFE6]">
-                <Text className="text-[9px] font-bold text-[#2D1810]">{flavor}</Text>
+                <Text className="text-[9px] font-bold text-[#2D1810]">
+                  {flavor}
+                </Text>
               </View>
             ))}
           </View>
@@ -217,12 +248,16 @@ export const FoodRecognitionResult: React.FC<{
       <View>
         <View className="flex-row items-center gap-1 mb-1.5">
           <Utensils width={12} height={12} color="#E86A17" />
-          <Text className="text-xs font-bold text-[#2D1810]">Key Detected Ingredients</Text>
+          <Text className="text-xs font-bold text-[#2D1810]">
+            Key Detected Ingredients
+          </Text>
         </View>
         <View className="flex-row flex-wrap gap-1.5">
           {result.detectedIngredients.map((ing, i) => (
             <View key={i} className="px-2.5 py-1 rounded-full bg-[#F4EFE6]">
-              <Text className="text-[10px] font-medium text-[#2D1810]">{ing}</Text>
+              <Text className="text-[10px] font-medium text-[#2D1810]">
+                {ing}
+              </Text>
             </View>
           ))}
         </View>
@@ -237,7 +272,9 @@ export const FoodRecognitionResult: React.FC<{
           { label: "Fat", value: result.nutritionEstimate.fat },
         ].map((m) => (
           <View key={m.label} className="flex-1 items-center">
-            <Text className="text-xs font-extrabold text-[#2D1810]">{m.value}</Text>
+            <Text className="text-xs font-extrabold text-[#2D1810]">
+              {m.value}
+            </Text>
             <Text className="text-[9px] text-[#8E7668]">{m.label}</Text>
           </View>
         ))}
@@ -256,11 +293,14 @@ export const FoodRecognitionResult: React.FC<{
 
         <View className="flex-row items-center justify-between gap-2">
           <View className="flex-1">
-            <Text numberOfLines={1} className="text-xs font-extrabold text-white">
+            <Text
+              numberOfLines={1}
+              className="text-xs font-extrabold text-white"
+            >
               {result.matchedMenuDish.name}
             </Text>
             <Text className="text-[11px] text-amber-100/80">
-              ${result.matchedMenuDish.price.toFixed(2)} • Ready in{" "}
+              ₵{result.matchedMenuDish.price.toFixed(2)} • Ready in{" "}
               {result.matchedMenuDish.prepTime}
             </Text>
           </View>
@@ -270,14 +310,18 @@ export const FoodRecognitionResult: React.FC<{
               onPress={() => onViewDetails(result.matchedMenuDish)}
               className="px-2.5 py-1.5 rounded-xl bg-white/10"
             >
-              <Text className="text-white text-[11px] font-semibold">Details</Text>
+              <Text className="text-white text-[11px] font-semibold">
+                Details
+              </Text>
             </Pressable>
             <Pressable
               onPress={() => onAddToCart(result.matchedMenuDish)}
               className="px-3 py-1.5 rounded-xl bg-[#E86A17] flex-row items-center gap-1"
             >
               <Plus width={14} height={14} color="#fff" strokeWidth={2.5} />
-              <Text className="text-white text-[11px] font-bold">Order Dish</Text>
+              <Text className="text-white text-[11px] font-bold">
+                Order Dish
+              </Text>
             </Pressable>
           </View>
         </View>

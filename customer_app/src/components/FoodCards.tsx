@@ -132,11 +132,11 @@ export const FoodCard: React.FC<FoodCardProps> = ({
         <View className="flex-row items-center justify-between pt-1 border-t border-neutral-100">
           <View className="flex-row items-baseline gap-1.5">
             <Text className="text-base font-extrabold text-[#2D1810]">
-              ${food.price.toFixed(2)}
+              ₵{food.price.toFixed(2)}
             </Text>
             {food.originalPrice ? (
               <Text className="text-xs text-neutral-400 line-through">
-                ${food.originalPrice.toFixed(2)}
+                ₵{food.originalPrice.toFixed(2)}
               </Text>
             ) : null}
           </View>
@@ -224,7 +224,7 @@ export const HorizontalFoodCard: React.FC<FoodCardProps> = ({
         {/* Price & Add */}
         <View className="flex-row items-center justify-between mt-auto">
           <Text className="text-xs font-extrabold text-[#2D1810]">
-            ${food.price.toFixed(2)}
+            ₵{food.price.toFixed(2)}
           </Text>
 
           <Pressable

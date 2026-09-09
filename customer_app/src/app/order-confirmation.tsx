@@ -104,7 +104,7 @@ export default function OrderConfirmationScreen() {
             {order.items.length} Delicious Items
           </Text>
           <Text className="text-sm font-black text-[#E86A17]">
-            ${order.total.toFixed(2)}
+            ₵{order.total.toFixed(2)}
           </Text>
         </View>
       </View>

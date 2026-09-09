@@ -30,9 +30,9 @@ type SortBy = "popularity" | "rating" | "price_asc" | "price_desc";
 
 const priceTierOptions: { value: PriceTier; label: string }[] = [
   { value: "all", label: "Price: All" },
-  { value: "budget", label: "Under $12" },
-  { value: "mid", label: "$12 - $16" },
-  { value: "premium", label: "$16+" },
+  { value: "budget", label: "Under ₵12" },
+  { value: "mid", label: "₵12 - ₵16" },
+  { value: "premium", label: "₵16+" },
 ];
 
 const ratingOptions: { value: number; label: string }[] = [
@@ -504,7 +504,7 @@ export default function ExploreScreen() {
 
                           <View className="flex-row items-center justify-between pt-1 border-t border-neutral-100">
                             <Text className="text-sm font-black text-[#2D1810]">
-                              ${food.price.toFixed(2)}
+                              ₵{food.price.toFixed(2)}
                             </Text>
                             <Pressable
                               onPress={() => handleAddToCartQuick(food)}

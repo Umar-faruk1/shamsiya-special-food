@@ -198,7 +198,7 @@ export default function CartScreen() {
               <View className="flex-row items-center gap-2">
                 <Check width={16} height={16} color="#059669" />
                 <Text className="text-xs font-bold text-emerald-800">
-                  {appliedDiscount.code} applied (-$
+                  {appliedDiscount.code} applied (-₵
                   {appliedDiscount.amount.toFixed(2)})
                 </Text>
               </View>
@@ -241,7 +241,7 @@ export default function CartScreen() {
           <View className="flex-row justify-between">
             <Text className="text-xs text-[#613D2D]">Subtotal</Text>
             <Text className="text-xs font-bold text-[#2D1810]">
-              ${subtotal.toFixed(2)}
+              ₵{subtotal.toFixed(2)}
             </Text>
           </View>
 
@@ -249,11 +249,11 @@ export default function CartScreen() {
             <Text className="text-xs text-[#613D2D]">Delivery Fee</Text>
             {deliveryFee === 0 ? (
               <Text className="text-xs font-bold text-emerald-600">
-                FREE ($40+ Order)
+                FREE (₵40+ Order)
               </Text>
             ) : (
               <Text className="text-xs font-bold text-[#2D1810]">
-                ${deliveryFee.toFixed(2)}
+                ₵{deliveryFee.toFixed(2)}
               </Text>
             )}
           </View>
@@ -261,7 +261,7 @@ export default function CartScreen() {
           <View className="flex-row justify-between">
             <Text className="text-xs text-[#613D2D]">Service & Processing</Text>
             <Text className="text-xs font-bold text-[#2D1810]">
-              ${serviceFee.toFixed(2)}
+              ₵{serviceFee.toFixed(2)}
             </Text>
           </View>
 
@@ -271,7 +271,7 @@ export default function CartScreen() {
                 Voucher Discount
               </Text>
               <Text className="text-xs font-bold text-emerald-700">
-                -${discountAmount.toFixed(2)}
+                -₵{discountAmount.toFixed(2)}
               </Text>
             </View>
           ) : null}
@@ -281,7 +281,7 @@ export default function CartScreen() {
               Total Amount
             </Text>
             <Text className="text-lg font-black text-[#E86A17]">
-              ${total.toFixed(2)}
+              ₵{total.toFixed(2)}
             </Text>
           </View>
         </View>
@@ -306,7 +306,7 @@ export default function CartScreen() {
             <ArrowRight width={16} height={16} color="#fff" strokeWidth={2.5} />
           }
         >
-          Proceed to Checkout (${total.toFixed(2)})
+          Proceed to Checkout (₵{total.toFixed(2)})
         </PrimaryButton>
       </ScrollView>
     </View>

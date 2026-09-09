@@ -67,6 +67,9 @@ export default function HomeScreen() {
   const {
     categories,
     foodItems,
+    menuLoading,
+    menuError,
+    refreshMenu,
     orders,
     favorites,
     handleAddToCartQuick,
@@ -102,6 +105,24 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingBottom: 32, gap: 20 }}
         showsVerticalScrollIndicator={false}
       >
+        {menuLoading ? (
+          <View className="mx-4 p-4 rounded-2xl bg-white border border-[#613D2D]/10">
+            <Text className="text-xs font-semibold text-[#8E7668]">
+              Loading today&apos;s menu...
+            </Text>
+          </View>
+        ) : menuError ? (
+          <View className="mx-4 p-4 rounded-2xl bg-red-50 border border-red-200">
+            <Text className="text-xs font-semibold text-red-700">
+              {menuError}
+            </Text>
+            <Pressable onPress={refreshMenu} className="mt-2 self-start">
+              <Text className="text-xs font-bold text-[#E86A17]">
+                Try again
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
         {/* 1. GREETING */}
         <View className="px-4 pt-1">
           <Text className="text-xl font-extrabold text-[#2D1810]">
@@ -374,43 +395,49 @@ export default function HomeScreen() {
               </Text>
             </Pressable>
 
-            {categories.map((cat) => (
-              <Pressable
-                key={cat.id}
-                onPress={() => {
-                  setSelectedCategory(cat.id);
-                  router.push("/(tabs)/explore");
-                }}
-                style={{ minWidth: 76 }}
-                className={`items-center gap-1.5 p-2 rounded-2xl ${
-                  selectedCategory === cat.id
-                    ? "bg-[#2D1810]"
-                    : "bg-white border border-[#613D2D]/10"
-                }`}
-              >
-                <View
-                  className={`w-11 h-11 rounded-xl items-center justify-center ${
+            {categories.length > 0 ? (
+              categories.map((cat) => (
+                <Pressable
+                  key={cat.id}
+                  onPress={() => {
+                    setSelectedCategory(cat.id);
+                    router.push("/(tabs)/explore");
+                  }}
+                  style={{ minWidth: 76 }}
+                  className={`items-center gap-1.5 p-2 rounded-2xl ${
                     selectedCategory === cat.id
-                      ? "bg-[#E86A17]"
-                      : "bg-[#F4EFE6]"
+                      ? "bg-[#2D1810]"
+                      : "bg-white border border-[#613D2D]/10"
                   }`}
                 >
-                  <Text className="text-sm">
-                    {categoryEmoji[cat.name] || "🍲"}
+                  <View
+                    className={`w-11 h-11 rounded-xl items-center justify-center ${
+                      selectedCategory === cat.id
+                        ? "bg-[#E86A17]"
+                        : "bg-[#F4EFE6]"
+                    }`}
+                  >
+                    <Text className="text-sm">
+                      {categoryEmoji[cat.name] || "🍲"}
+                    </Text>
+                  </View>
+                  <Text
+                    numberOfLines={1}
+                    className={`text-[11px] font-bold text-center ${
+                      selectedCategory === cat.id
+                        ? "text-white"
+                        : "text-[#2D1810]"
+                    }`}
+                  >
+                    {cat.name}
                   </Text>
-                </View>
-                <Text
-                  numberOfLines={1}
-                  className={`text-[11px] font-bold text-center ${
-                    selectedCategory === cat.id
-                      ? "text-white"
-                      : "text-[#2D1810]"
-                  }`}
-                >
-                  {cat.name}
-                </Text>
-              </Pressable>
-            ))}
+                </Pressable>
+              ))
+            ) : (
+              <Text className="px-1 text-xs text-[#8E7668]">
+                No active categories yet.
+              </Text>
+            )}
           </ScrollView>
         </View>
 
@@ -442,75 +469,81 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
           >
-            {popularDishes.map((food) => {
-              const isFav = favorites.includes(food.id);
-              return (
-                <Pressable
-                  key={food.id}
-                  onPress={() => onSelectFood(food)}
-                  style={{ width: 200 }}
-                  className="bg-white rounded-3xl p-3 border border-[#613D2D]/10"
-                >
-                  <View className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-neutral-100 mb-2">
-                    <Image
-                      source={{ uri: food.image }}
-                      style={{ width: "100%", height: "100%" }}
-                      resizeMode="cover"
-                    />
-                    <Pressable
-                      onPress={() => handleToggleFavorite(food)}
-                      className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 items-center justify-center"
-                      accessibilityLabel="Toggle favorite"
-                    >
-                      <Heart
-                        width={14}
-                        height={14}
-                        color={isFav ? "#EF4444" : "#525252"}
-                        fill={isFav ? "#EF4444" : "none"}
+            {popularDishes.length > 0 ? (
+              popularDishes.map((food) => {
+                const isFav = favorites.includes(food.id);
+                return (
+                  <Pressable
+                    key={food.id}
+                    onPress={() => onSelectFood(food)}
+                    style={{ width: 200 }}
+                    className="bg-white rounded-3xl p-3 border border-[#613D2D]/10"
+                  >
+                    <View className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-neutral-100 mb-2">
+                      <Image
+                        source={{ uri: food.image }}
+                        style={{ width: "100%", height: "100%" }}
+                        resizeMode="cover"
                       />
-                    </Pressable>
-                    <View className="absolute bottom-2 left-2 bg-black/50 px-2 py-0.5 rounded-full flex-row items-center gap-1">
-                      <Clock width={10} height={10} color="#FCD34D" />
-                      <Text className="text-white text-[9px] font-bold">
-                        {food.prepTime}
+                      <Pressable
+                        onPress={() => handleToggleFavorite(food)}
+                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 items-center justify-center"
+                        accessibilityLabel="Toggle favorite"
+                      >
+                        <Heart
+                          width={14}
+                          height={14}
+                          color={isFav ? "#EF4444" : "#525252"}
+                          fill={isFav ? "#EF4444" : "none"}
+                        />
+                      </Pressable>
+                      <View className="absolute bottom-2 left-2 bg-black/50 px-2 py-0.5 rounded-full flex-row items-center gap-1">
+                        <Clock width={10} height={10} color="#FCD34D" />
+                        <Text className="text-white text-[9px] font-bold">
+                          {food.prepTime}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text
+                      numberOfLines={1}
+                      className="text-xs font-bold text-[#2D1810]"
+                    >
+                      {food.name}
+                    </Text>
+
+                    <View className="flex-row items-center justify-between mt-1 mb-2">
+                      <RatingStars rating={food.rating} size="sm" showNumber />
+                      <Text className="text-[10px] text-neutral-500 font-medium">
+                        {food.calories} kcal
                       </Text>
                     </View>
-                  </View>
 
-                  <Text
-                    numberOfLines={1}
-                    className="text-xs font-bold text-[#2D1810]"
-                  >
-                    {food.name}
-                  </Text>
-
-                  <View className="flex-row items-center justify-between mt-1 mb-2">
-                    <RatingStars rating={food.rating} size="sm" showNumber />
-                    <Text className="text-[10px] text-neutral-500 font-medium">
-                      {food.calories} kcal
-                    </Text>
-                  </View>
-
-                  <View className="flex-row items-center justify-between pt-1.5 border-t border-neutral-100">
-                    <Text className="text-xs font-extrabold text-[#2D1810]">
-                      ${food.price.toFixed(2)}
-                    </Text>
-                    <Pressable
-                      onPress={() => handleAddToCartQuick(food)}
-                      className="w-7 h-7 rounded-xl bg-[#F4EFE6] items-center justify-center"
-                      accessibilityLabel={`Add ${food.name}`}
-                    >
-                      <Plus
-                        width={14}
-                        height={14}
-                        color="#2D1810"
-                        strokeWidth={2.5}
-                      />
-                    </Pressable>
-                  </View>
-                </Pressable>
-              );
-            })}
+                    <View className="flex-row items-center justify-between pt-1.5 border-t border-neutral-100">
+                      <Text className="text-xs font-extrabold text-[#2D1810]">
+                        ₵{food.price.toFixed(2)}
+                      </Text>
+                      <Pressable
+                        onPress={() => handleAddToCartQuick(food)}
+                        className="w-7 h-7 rounded-xl bg-[#F4EFE6] items-center justify-center"
+                        accessibilityLabel={`Add ${food.name}`}
+                      >
+                        <Plus
+                          width={14}
+                          height={14}
+                          color="#2D1810"
+                          strokeWidth={2.5}
+                        />
+                      </Pressable>
+                    </View>
+                  </Pressable>
+                );
+              })
+            ) : (
+              <Text className="px-4 text-xs text-[#8E7668]">
+                No featured dishes available right now.
+              </Text>
+            )}
           </ScrollView>
         </View>
 
@@ -541,88 +574,98 @@ export default function HomeScreen() {
 
           {/* 2-Column Food Cards */}
           <View className="gap-3">
-            {Array.from({
-              length: Math.ceil(recommendedDishes.length / 2),
-            }).map((_, rowIdx) => (
-              <View key={rowIdx} className="flex-row gap-3">
-                {recommendedDishes
-                  .slice(rowIdx * 2, rowIdx * 2 + 2)
-                  .map((food) => {
-                    const isFav = favorites.includes(food.id);
-                    return (
-                      <Pressable
-                        key={food.id}
-                        onPress={() => onSelectFood(food)}
-                        className="flex-1 bg-white rounded-3xl p-3 border border-[#613D2D]/10"
-                      >
-                        <View className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-neutral-100 mb-2">
-                          <Image
-                            source={{ uri: food.image }}
-                            style={{ width: "100%", height: "100%" }}
-                            resizeMode="cover"
-                          />
-                          <View className="absolute top-2 left-2 flex-row items-center gap-1 px-2 py-0.5 rounded-full bg-[#2D1810] border border-[#E86A17]/40">
-                            <Sparkles width={10} height={10} color="#E86A17" />
-                            <Text className="text-[9px] font-extrabold text-amber-300">
-                              AI Pick
-                            </Text>
-                          </View>
-                          <Pressable
-                            onPress={() => handleToggleFavorite(food)}
-                            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 items-center justify-center"
-                            accessibilityLabel="Add to favorites"
-                          >
-                            <Heart
-                              width={14}
-                              height={14}
-                              color={isFav ? "#EF4444" : "#525252"}
-                              fill={isFav ? "#EF4444" : "none"}
-                            />
-                          </Pressable>
-                          <View className="absolute bottom-2 left-2 bg-black/50 px-2 py-0.5 rounded-full flex-row items-center gap-1">
-                            <Clock width={10} height={10} color="#FCD34D" />
-                            <Text className="text-white text-[9px] font-bold">
-                              {food.prepTime}
-                            </Text>
-                          </View>
-                        </View>
-
-                        <Text
-                          numberOfLines={1}
-                          className="text-xs font-bold text-[#2D1810]"
+            {recommendedDishes.length > 0 ? (
+              Array.from({
+                length: Math.ceil(recommendedDishes.length / 2),
+              }).map((_, rowIdx) => (
+                <View key={rowIdx} className="flex-row gap-3">
+                  {recommendedDishes
+                    .slice(rowIdx * 2, rowIdx * 2 + 2)
+                    .map((food) => {
+                      const isFav = favorites.includes(food.id);
+                      return (
+                        <Pressable
+                          key={food.id}
+                          onPress={() => onSelectFood(food)}
+                          className="flex-1 bg-white rounded-3xl p-3 border border-[#613D2D]/10"
                         >
-                          {food.name}
-                        </Text>
-
-                        <View className="flex-row items-center justify-between mt-1 mb-2">
-                          <RatingStars rating={food.rating} size="sm" />
-                          <Text className="text-[10px] text-neutral-500 font-medium">
-                            {food.calories} kcal
-                          </Text>
-                        </View>
-
-                        <View className="flex-row items-center justify-between pt-1.5 border-t border-neutral-100">
-                          <Text className="text-xs font-extrabold text-[#2D1810]">
-                            ${food.price.toFixed(2)}
-                          </Text>
-                          <Pressable
-                            onPress={() => handleAddToCartQuick(food)}
-                            className="w-7 h-7 rounded-xl bg-[#F4EFE6] items-center justify-center"
-                            accessibilityLabel={`Add ${food.name}`}
-                          >
-                            <Plus
-                              width={14}
-                              height={14}
-                              color="#2D1810"
-                              strokeWidth={2.5}
+                          <View className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-neutral-100 mb-2">
+                            <Image
+                              source={{ uri: food.image }}
+                              style={{ width: "100%", height: "100%" }}
+                              resizeMode="cover"
                             />
-                          </Pressable>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-              </View>
-            ))}
+                            <View className="absolute top-2 left-2 flex-row items-center gap-1 px-2 py-0.5 rounded-full bg-[#2D1810] border border-[#E86A17]/40">
+                              <Sparkles
+                                width={10}
+                                height={10}
+                                color="#E86A17"
+                              />
+                              <Text className="text-[9px] font-extrabold text-amber-300">
+                                AI Pick
+                              </Text>
+                            </View>
+                            <Pressable
+                              onPress={() => handleToggleFavorite(food)}
+                              className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 items-center justify-center"
+                              accessibilityLabel="Add to favorites"
+                            >
+                              <Heart
+                                width={14}
+                                height={14}
+                                color={isFav ? "#EF4444" : "#525252"}
+                                fill={isFav ? "#EF4444" : "none"}
+                              />
+                            </Pressable>
+                            <View className="absolute bottom-2 left-2 bg-black/50 px-2 py-0.5 rounded-full flex-row items-center gap-1">
+                              <Clock width={10} height={10} color="#FCD34D" />
+                              <Text className="text-white text-[9px] font-bold">
+                                {food.prepTime}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <Text
+                            numberOfLines={1}
+                            className="text-xs font-bold text-[#2D1810]"
+                          >
+                            {food.name}
+                          </Text>
+
+                          <View className="flex-row items-center justify-between mt-1 mb-2">
+                            <RatingStars rating={food.rating} size="sm" />
+                            <Text className="text-[10px] text-neutral-500 font-medium">
+                              {food.calories} kcal
+                            </Text>
+                          </View>
+
+                          <View className="flex-row items-center justify-between pt-1.5 border-t border-neutral-100">
+                            <Text className="text-xs font-extrabold text-[#2D1810]">
+                              ₵{food.price.toFixed(2)}
+                            </Text>
+                            <Pressable
+                              onPress={() => handleAddToCartQuick(food)}
+                              className="w-7 h-7 rounded-xl bg-[#F4EFE6] items-center justify-center"
+                              accessibilityLabel={`Add ${food.name}`}
+                            >
+                              <Plus
+                                width={14}
+                                height={14}
+                                color="#2D1810"
+                                strokeWidth={2.5}
+                              />
+                            </Pressable>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                </View>
+              ))
+            ) : (
+              <Text className="text-xs text-[#8E7668]">
+                No available dishes to recommend yet.
+              </Text>
+            )}
           </View>
         </View>
 
@@ -670,7 +713,7 @@ export default function HomeScreen() {
                           {order.items.length > 1
                             ? `+${order.items.length - 1} more items • `
                             : ""}
-                          ${order.total.toFixed(2)}
+                          ₵{order.total.toFixed(2)}
                         </Text>
                         <View className="mt-1 px-1.5 py-0.5 rounded bg-emerald-50 self-start">
                           <Text className="text-[9px] font-bold text-emerald-600">

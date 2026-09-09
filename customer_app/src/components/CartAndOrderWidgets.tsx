@@ -1,7 +1,20 @@
 import React from "react";
 import { View, Text, Image, Pressable } from "react-native";
-import { Trash2, Phone, MessageSquare, Star, ChevronRight, CheckCircle2, Clock } from "lucide-react-native";
-import { CartItem as CartItemType, Order, RiderInfo, OrderStatusStep } from "../types";
+import {
+  Trash2,
+  Phone,
+  MessageSquare,
+  Star,
+  ChevronRight,
+  CheckCircle2,
+  Clock,
+} from "lucide-react-native";
+import {
+  CartItem as CartItemType,
+  Order,
+  RiderInfo,
+  OrderStatusStep,
+} from "../types";
 import { QuantitySelector, StatusBadge } from "./BadgesAndRatings";
 
 // Direct port of CartAndOrderWidgets.tsx
@@ -20,7 +33,10 @@ export const CartItemRow: React.FC<{
       <View className="flex-1 justify-between">
         <View className="flex-row items-start justify-between gap-1">
           <View className="flex-1">
-            <Text numberOfLines={1} className="text-xs font-bold text-[#2D1810]">
+            <Text
+              numberOfLines={1}
+              className="text-xs font-bold text-[#2D1810]"
+            >
               {item.food.name}
             </Text>
             {item.options.size ? (
@@ -34,7 +50,10 @@ export const CartItemRow: React.FC<{
               </Text>
             ) : null}
             {item.options.addons.length > 0 ? (
-              <Text numberOfLines={1} className="text-[10px] text-amber-700 font-medium">
+              <Text
+                numberOfLines={1}
+                className="text-[10px] text-amber-700 font-medium"
+              >
                 + {item.options.addons.map((a) => a.name).join(", ")}
               </Text>
             ) : null}
@@ -51,13 +70,15 @@ export const CartItemRow: React.FC<{
 
         <View className="flex-row items-center justify-between pt-1 border-t border-neutral-100 mt-1">
           <Text className="text-xs font-extrabold text-[#2D1810]">
-            ${item.itemTotalPrice.toFixed(2)}
+            ₵{item.itemTotalPrice.toFixed(2)}
           </Text>
 
           <QuantitySelector
             size="sm"
             quantity={item.quantity}
-            onIncrease={() => onUpdateQuantity(item.cartItemId, item.quantity + 1)}
+            onIncrease={() =>
+              onUpdateQuantity(item.cartItemId, item.quantity + 1)
+            }
             onDecrease={() => {
               if (item.quantity > 1) {
                 onUpdateQuantity(item.cartItemId, item.quantity - 1);
@@ -78,7 +99,8 @@ export const OrderCard: React.FC<{
   onTrackOrder?: (order: Order) => void;
   onReorder?: (order: Order) => void;
 }> = ({ order, onViewDetails, onTrackOrder, onReorder }) => {
-  const isOngoing = order.status !== "delivered" && order.status !== "cancelled";
+  const isOngoing =
+    order.status !== "delivered" && order.status !== "cancelled";
 
   return (
     <View className="bg-white rounded-3xl p-4 border border-[#613D2D]/12 gap-3">
@@ -87,7 +109,9 @@ export const OrderCard: React.FC<{
           <Text className="text-[10px] font-bold text-[#8E7668]">
             Order #{order.orderNumber}
           </Text>
-          <Text className="text-xs font-medium text-neutral-500">{order.createdAt}</Text>
+          <Text className="text-xs font-medium text-neutral-500">
+            {order.createdAt}
+          </Text>
         </View>
         <StatusBadge status={order.status} />
       </View>
@@ -111,17 +135,25 @@ export const OrderCard: React.FC<{
         </View>
         <View className="flex-1">
           <Text numberOfLines={1} className="text-xs font-bold text-[#2D1810]">
-            {order.items.map((it) => `${it.quantity}x ${it.food.name}`).join(", ")}
+            {order.items
+              .map((it) => `${it.quantity}x ${it.food.name}`)
+              .join(", ")}
           </Text>
           <Text className="text-[11px] text-[#8E7668]">
-            Total: <Text className="font-bold text-[#2D1810]">${order.total.toFixed(2)}</Text> (
-            {order.items.length} items)
+            Total:{" "}
+            <Text className="font-bold text-[#2D1810]">
+              ₵{order.total.toFixed(2)}
+            </Text>{" "}
+            ({order.items.length} items)
           </Text>
         </View>
       </View>
 
       <View className="flex-row items-center justify-between gap-2">
-        <Pressable onPress={() => onViewDetails(order)} className="flex-row items-center gap-1">
+        <Pressable
+          onPress={() => onViewDetails(order)}
+          className="flex-row items-center gap-1"
+        >
           <Text className="text-xs font-bold text-[#613D2D]">View Receipt</Text>
           <ChevronRight width={14} height={14} color="#613D2D" />
         </Pressable>
@@ -147,7 +179,9 @@ export const OrderCard: React.FC<{
   );
 };
 
-export const OrderTimeline: React.FC<{ steps: OrderStatusStep[] }> = ({ steps }) => {
+export const OrderTimeline: React.FC<{ steps: OrderStatusStep[] }> = ({
+  steps,
+}) => {
   return (
     <View className="gap-4 py-2">
       {steps.map((step, idx) => {
@@ -167,8 +201,8 @@ export const OrderTimeline: React.FC<{ steps: OrderStatusStep[] }> = ({ steps })
                 step.completed
                   ? "bg-emerald-500"
                   : step.current
-                  ? "bg-[#E86A17]"
-                  : "bg-neutral-200"
+                    ? "bg-[#E86A17]"
+                    : "bg-neutral-200"
               }`}
             >
               {step.completed ? (
@@ -185,8 +219,8 @@ export const OrderTimeline: React.FC<{ steps: OrderStatusStep[] }> = ({ steps })
                     step.current
                       ? "text-[#E86A17]"
                       : step.completed
-                      ? "text-[#2D1810]"
-                      : "text-neutral-400"
+                        ? "text-[#2D1810]"
+                        : "text-neutral-400"
                   }`}
                 >
                   {step.label}
@@ -226,19 +260,27 @@ export const RiderCard: React.FC<{
 
         <View className="flex-1">
           <View className="flex-row items-center gap-1.5">
-            <Text numberOfLines={1} className="text-xs font-bold text-[#2D1810]">
+            <Text
+              numberOfLines={1}
+              className="text-xs font-bold text-[#2D1810]"
+            >
               {rider.name}
             </Text>
             <View className="flex-row items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-50">
               <Star width={10} height={10} color="#F59E0B" fill="#F59E0B" />
-              <Text className="text-[10px] font-bold text-amber-700">{rider.rating}</Text>
+              <Text className="text-[10px] font-bold text-amber-700">
+                {rider.rating}
+              </Text>
             </View>
           </View>
 
           <Text numberOfLines={1} className="text-[10px] text-[#8E7668]">
             {rider.vehicle} • {rider.plateNumber}
           </Text>
-          <Text numberOfLines={1} className="text-[10px] text-emerald-700 font-medium">
+          <Text
+            numberOfLines={1}
+            className="text-[10px] text-emerald-700 font-medium"
+          >
             {rider.currentLocationName}
           </Text>
         </View>

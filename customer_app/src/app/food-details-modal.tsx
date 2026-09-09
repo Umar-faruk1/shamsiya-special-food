@@ -164,7 +164,7 @@ export default function FoodDetailsModal() {
               {food.name}
             </Text>
             <Text className="text-lg font-black text-[#E86A17]">
-              ${food.price.toFixed(2)}
+              ₵{food.price.toFixed(2)}
             </Text>
           </View>
 
@@ -274,7 +274,7 @@ export default function FoodDetailsModal() {
                   >
                     {size.extraPrice === 0
                       ? "Base Price"
-                      : `+$${size.extraPrice.toFixed(2)}`}
+                      : `+₵${size.extraPrice.toFixed(2)}`}
                   </Text>
                 </Pressable>
               ))}
@@ -351,7 +351,7 @@ export default function FoodDetailsModal() {
                       </Text>
                     </View>
                     <Text className="text-xs font-extrabold text-[#2D1810]">
-                      +${addon.price.toFixed(2)}
+                      +₵{addon.price.toFixed(2)}
                     </Text>
                   </Pressable>
                 );
@@ -390,7 +390,7 @@ export default function FoodDetailsModal() {
           <PrimaryButton size="lg" fullWidth onPress={handleAddToCart}>
             {addedToast
               ? "Added to Feast! ✓"
-              : `Add to Cart • $${totalPrice.toFixed(2)}`}
+              : `Add to Cart • ₵${totalPrice.toFixed(2)}`}
           </PrimaryButton>
         </View>
       </View>
