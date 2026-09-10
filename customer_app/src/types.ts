@@ -83,7 +83,16 @@ export interface CartItemOption {
   size?: string;
   spiceLevel?: string;
   addons: FoodOptionAddon[];
+  selectedOptions?: CartSelectedOption[];
   specialInstructions?: string;
+}
+
+export interface CartSelectedOption {
+  id: string;
+  menuItemId: string;
+  name: string;
+  optionType: string | null;
+  price: number;
 }
 
 export interface CartItem {

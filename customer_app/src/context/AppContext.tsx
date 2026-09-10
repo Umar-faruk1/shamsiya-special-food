@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useEffect,
 } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import {
   MOCK_ORDERS,
@@ -24,6 +25,7 @@ import {
   PaymentMethod,
   FoodOptionAddon,
   Category,
+  CartSelectedOption,
 } from "../types";
 import { supabase } from "../api/supabase";
 
@@ -38,7 +40,14 @@ interface CartOptions {
   size?: string;
   spiceLevel?: string;
   addons: FoodOptionAddon[];
+  selectedOptions?: CartSelectedOption[];
   specialInstructions?: string;
+}
+
+const CART_STORAGE_KEY = "shamsiya.customer.cart.v1";
+
+function buildCartItemId(menuItemId: string, optionIds: string[]) {
+  return `cart-${menuItemId}-${[...optionIds].sort().join(",") || "no-options"}`;
 }
 
 interface AppContextValue {
@@ -117,6 +126,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [menuError, setMenuError] = useState<string | null>(null);
   const [user, setUser] = useState<UserProfile>(MOCK_USER);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartHydrated, setCartHydrated] = useState(false);
   const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
   const [favorites, setFavorites] = useState<string[]>([
     "food-1",
@@ -154,6 +164,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void refreshMenu();
   }, [refreshMenu]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    AsyncStorage.getItem(CART_STORAGE_KEY)
+      .then((storedCart) => {
+        if (!mounted) return;
+        if (storedCart) {
+          try {
+            const parsedCart = JSON.parse(storedCart) as CartItem[];
+            if (Array.isArray(parsedCart)) setCartItems(parsedCart);
+          } catch (error) {
+            console.error("Unable to restore local cart:", error);
+          }
+        }
+      })
+      .catch((error) => console.error("Unable to read local cart:", error))
+      .finally(() => {
+        if (mounted) setCartHydrated(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!cartHydrated) return;
+    AsyncStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems)).catch(
+      (error) => console.error("Unable to persist local cart:", error),
+    );
+  }, [cartHydrated, cartItems]);
 
   const getAuthErrorMessage = useCallback((message: string) => {
     const normalized = message.toLowerCase();
@@ -354,7 +396,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (food: FoodItem) => {
       setCartItems((prev) => {
         const existingIndex = prev.findIndex(
-          (it) => it.food.id === food.id && it.options.addons.length === 0,
+          (it) => it.cartItemId === buildCartItemId(food.id, []),
         );
         if (existingIndex > -1) {
           const updated = [...prev];
@@ -366,13 +408,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return updated;
         }
         const newItem: CartItem = {
-          cartItemId: `cart-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          cartItemId: buildCartItemId(food.id, []),
           food,
           quantity: 1,
           options: {
             size: food.availableSizes?.[0]?.name || "Standard",
             spiceLevel: "Medium",
             addons: [],
+            selectedOptions: [],
           },
           itemTotalPrice: food.price,
         };
@@ -385,22 +428,55 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const handleAddToCartWithOptions = useCallback(
     (food: FoodItem, quantity: number, options: CartOptions) => {
+      if (!food?.id || quantity < 1) {
+        showToast("Please choose a valid quantity and food item.");
+        return;
+      }
+
       const sizeExtra =
         food.availableSizes?.find((s) => s.name === options.size)?.extraPrice ||
         0;
       const addonsExtra = options.addons.reduce((a, b) => a + b.price, 0);
-      const unitPrice = food.price + sizeExtra + addonsExtra;
+      const selectedOptions = options.selectedOptions ?? [];
+      const selectedOptionsExtra = selectedOptions.reduce(
+        (total, option) => total + option.price,
+        0,
+      );
+      const unitPrice =
+        food.price + sizeExtra + addonsExtra + selectedOptionsExtra;
       const itemTotalPrice = unitPrice * quantity;
+      const cartItemId = buildCartItemId(
+        food.id,
+        selectedOptions.map((option) => option.id),
+      );
 
-      const newItem: CartItem = {
-        cartItemId: `cart-${Date.now()}`,
-        food,
-        quantity,
-        options,
-        itemTotalPrice,
-      };
+      setCartItems((prev) => {
+        const existingIndex = prev.findIndex(
+          (item) => item.cartItemId === cartItemId,
+        );
+        if (existingIndex === -1) {
+          return [
+            {
+              cartItemId,
+              food,
+              quantity,
+              options: { ...options, selectedOptions },
+              itemTotalPrice,
+            },
+            ...prev,
+          ];
+        }
 
-      setCartItems((prev) => [newItem, ...prev]);
+        const updated = [...prev];
+        const existing = updated[existingIndex];
+        const nextQuantity = existing.quantity + quantity;
+        updated[existingIndex] = {
+          ...existing,
+          quantity: nextQuantity,
+          itemTotalPrice: Number((unitPrice * nextQuantity).toFixed(2)),
+        };
+        return updated;
+      });
       showToast(`Added ${quantity}x ${food.name} to your feast!`);
     },
     [showToast],

@@ -10,6 +10,7 @@ import {
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { UserAddress } from "../types";
+import { useApp } from "../context/AppContext";
 
 interface AppHeaderProps {
   currentScreen?: string;
@@ -31,7 +32,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   currentScreen = "Home",
   title,
   subtitle,
-  cartCount = 0,
+  cartCount,
   unreadCount = 0,
   favoritesCount = 0,
   currentAddress,
@@ -44,6 +45,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 }) => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { cartTotalItems } = useApp();
+  const displayedCartCount = cartCount ?? cartTotalItems;
 
   const isMainTab = ["Home", "Explore", "Orders", "Profile"].includes(
     currentScreen,
@@ -156,11 +159,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           <Pressable
             onPress={handleCartClick}
             className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#2D1810] active:opacity-80"
-            accessibilityLabel={`Cart with ${cartCount} items`}
+            accessibilityLabel={`Cart with ${displayedCartCount} items`}
           >
             <ShoppingBag width={14} height={14} color="#F59E0B" />
             <Text className="text-xs font-extrabold text-white">
-              {cartCount}
+              {displayedCartCount}
             </Text>
           </Pressable>
         </View>

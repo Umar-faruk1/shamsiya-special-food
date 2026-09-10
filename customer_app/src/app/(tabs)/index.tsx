@@ -94,7 +94,6 @@ export default function HomeScreen() {
     <View className="flex-1 bg-[#F7F4EE]">
       <AppHeader
         currentScreen="Home"
-        cartCount={0}
         favoritesCount={favorites.length}
         currentLocation={
           user.savedAddresses[0]?.street || "Downtown Gourmet Way"

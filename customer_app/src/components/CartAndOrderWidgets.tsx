@@ -57,6 +57,17 @@ export const CartItemRow: React.FC<{
                 + {item.options.addons.map((a) => a.name).join(", ")}
               </Text>
             ) : null}
+            {item.options.selectedOptions?.length ? (
+              <Text
+                numberOfLines={2}
+                className="text-[10px] text-amber-700 font-medium"
+              >
+                +{" "}
+                {item.options.selectedOptions
+                  .map((option) => option.name)
+                  .join(", ")}
+              </Text>
+            ) : null}
           </View>
 
           <Pressable
@@ -69,9 +80,14 @@ export const CartItemRow: React.FC<{
         </View>
 
         <View className="flex-row items-center justify-between pt-1 border-t border-neutral-100 mt-1">
-          <Text className="text-xs font-extrabold text-[#2D1810]">
-            ₵{item.itemTotalPrice.toFixed(2)}
-          </Text>
+          <View>
+            <Text className="text-[10px] text-[#8E7668]">
+              ₵{(item.itemTotalPrice / item.quantity).toFixed(2)} each
+            </Text>
+            <Text className="text-xs font-extrabold text-[#2D1810]">
+              ₵{item.itemTotalPrice.toFixed(2)} total
+            </Text>
+          </View>
 
           <QuantitySelector
             size="sm"

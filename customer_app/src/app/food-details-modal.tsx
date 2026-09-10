@@ -16,6 +16,7 @@ import { FoodItem } from "../types";
 import { RatingStars, QuantitySelector } from "../components/BadgesAndRatings";
 import { PrimaryButton } from "../components/Buttons";
 import { fetchMenuItemDetail } from "../api/menu";
+import { useApp } from "../context/AppContext";
 
 const placeholderImage = Asset.fromModule(
   require("../../assets/images/icon.png"),
@@ -33,6 +34,7 @@ type FoodDetail = Omit<FoodItem, "calories"> & { calories: number | null };
 export default function FoodDetailsModal() {
   const router = useRouter();
   const { foodId } = useLocalSearchParams<{ foodId?: string }>();
+  const { handleAddToCartWithOptions } = useApp();
 
   const [menuItem, setMenuItem] = useState<FoodDetail | null>(null);
   const [options, setOptions] = useState<MenuOption[]>([]);
@@ -129,20 +131,28 @@ export default function FoodDetailsModal() {
       return;
     }
 
-    const preparedItem = {
-      itemId: menuItem.id,
-      quantity,
-      selectedOptions: options.filter((option) =>
-        selectedOptionIds.includes(option.id),
-      ),
-      totalPrice,
-    };
+    if (quantity < 1) {
+      Alert.alert("Invalid quantity", "Please choose at least one item.");
+      return;
+    }
 
-    console.log("Prepared for future cart implementation:", preparedItem);
-    Alert.alert(
-      "Item prepared",
-      "This selection is ready for the upcoming cart flow.",
+    handleAddToCartWithOptions(
+      { ...menuItem, calories: menuItem.calories ?? 0 },
+      quantity,
+      {
+        addons: [],
+        selectedOptions: options
+          .filter((option) => selectedOptionIds.includes(option.id))
+          .map((option) => ({
+            id: option.id,
+            menuItemId: menuItem.id,
+            name: option.name,
+            optionType: option.option_type,
+            price: option.price,
+          })),
+      },
     );
+    router.back();
   };
 
   if (loading) {
