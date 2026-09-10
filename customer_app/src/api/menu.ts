@@ -32,6 +32,16 @@ export interface MenuItemRow {
   updated_at: string;
 }
 
+export interface MenuItemOptionRow {
+  id: string;
+  menu_item_id: string;
+  name: string;
+  option_type: string | null;
+  price: number | string;
+  is_available: boolean;
+  created_at: string;
+}
+
 const foodPlaceholder = Asset.fromModule(
   require("../../assets/images/icon.png"),
 ).uri;
@@ -58,9 +68,7 @@ export function mapMenuItem(row: MenuItemRow): FoodItem {
     price: Number.isFinite(price) ? price : 0,
     rating: Number.isFinite(rating) ? rating : 0,
     reviewsCount: row.review_count,
-    prepTime: row.preparation_time
-      ? `${row.preparation_time} min`
-      : "Ready soon",
+    prepTime: row.preparation_time != null ? `${row.preparation_time} min` : "",
     calories: row.calories ?? 0,
     spicyLevel: 0,
     isHalal: false,
@@ -69,8 +77,7 @@ export function mapMenuItem(row: MenuItemRow): FoodItem {
     isPopular: row.featured,
     tags: [],
     image: row.image_url?.trim() || foodPlaceholder,
-    description:
-      row.description || "A freshly prepared Shamsiya Special Food dish.",
+    description: row.description?.trim() || "",
     ingredients: row.ingredients || [],
     allergens: [],
     nutrition: {
@@ -79,6 +86,43 @@ export function mapMenuItem(row: MenuItemRow): FoodItem {
       carbs: "",
       fat: "",
     },
+  };
+}
+
+export async function fetchMenuItemDetail(menuItemId: string) {
+  if (!menuItemId) {
+    throw new Error("A menu item ID is required.");
+  }
+
+  const [menuItemResult, optionsResult] = await Promise.all([
+    supabase
+      .from("menu_items")
+      .select(
+        "id,category_id,name,description,price,image_url,ingredients,available,featured,rating,review_count,preparation_time,calories,created_at,updated_at",
+      )
+      .eq("id", menuItemId)
+      .eq("available", true)
+      .maybeSingle(),
+    supabase
+      .from("menu_item_options")
+      .select("id,menu_item_id,name,option_type,price,is_available,created_at")
+      .eq("menu_item_id", menuItemId)
+      .eq("is_available", true),
+  ]);
+
+  if (menuItemResult.error) throw menuItemResult.error;
+  if (optionsResult.error) throw optionsResult.error;
+
+  if (!menuItemResult.data) {
+    throw new Error("This food item is unavailable right now.");
+  }
+
+  return {
+    menuItem: {
+      ...mapMenuItem(menuItemResult.data as MenuItemRow),
+      calories: (menuItemResult.data as MenuItemRow).calories,
+    },
+    options: (optionsResult.data as MenuItemOptionRow[]) ?? [],
   };
 }
 
