@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { ShoppingBag } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { CartItemRow } from "../components/CartAndOrderWidgets";
@@ -32,7 +32,7 @@ export default function CartScreen() {
             title="Your cart is empty"
             description="Browse the menu and add something delicious."
             actionText="Browse Menu"
-            onAction={() => router.push("/explore")}
+            onAction={() => router.push("/(tabs)/explore")}
           />
         </View>
       </View>
@@ -87,12 +87,7 @@ export default function CartScreen() {
         <PrimaryButton
           size="lg"
           fullWidth
-          onPress={() =>
-            Alert.alert(
-              "Checkout coming soon",
-              "Your local cart is ready. Checkout will be added in the next step.",
-            )
-          }
+          onPress={() => router.push("/checkout")}
         >
           Proceed to Checkout
         </PrimaryButton>

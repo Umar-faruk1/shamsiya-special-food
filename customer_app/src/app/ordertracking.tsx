@@ -1,373 +1,369 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  Image,
+  ActivityIndicator,
   Pressable,
-  TextInput,
+  RefreshControl,
   ScrollView,
+  Text,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import {
-  MapPin,
+  Bike,
+  CheckCircle2,
   Clock,
-  ChevronDown,
-  ChevronUp,
-  Store,
+  MapPin,
   Navigation,
-  Send,
+  Package,
+  RefreshCw,
+  Star,
 } from "lucide-react-native";
-import { OrderStatusStep } from "../types";
-import { OrderTimeline, RiderCard } from "../components/CartAndOrderWidgets";
-import { StatusBadge } from "../components/BadgesAndRatings";
-import { BottomSheet } from "../components/CommonModalsAndCards";
 import { AppHeader } from "../components/AppHeader";
+import { ErrorState } from "../components/CommonModalsAndCards";
+import { StatusBadge } from "../components/BadgesAndRatings";
 import { useApp } from "../context/AppContext";
+import {
+  CustomerOrderTracking,
+  fetchCustomerOrderTracking,
+} from "../api/orders";
 
-const steps: OrderStatusStep[] = [
-  {
-    status: "confirmed",
-    label: "Order Confirmed",
-    timestamp: "12:45 PM",
-    description: "Payment verified and sent to master kitchen.",
-    completed: true,
-    current: false,
-  },
-  {
-    status: "preparing",
-    label: "Kitchen Cooking & Searing",
-    timestamp: "12:52 PM",
-    description: "Slow dum cooking and fire roasting fresh skewers.",
-    completed: true,
-    current: false,
-  },
-  {
-    status: "picked_up",
-    label: "Packed in Insulated Thermal Box",
-    timestamp: "01:05 PM",
-    description: "Quality sealed with fresh garnishes.",
-    completed: true,
-    current: false,
-  },
-  {
-    status: "on_the_way",
-    label: "Out for Delivery with Rider",
-    timestamp: "01:10 PM",
-    description: "Rider on transit via electric courier motorbike.",
-    completed: false,
-    current: true,
-  },
-  {
-    status: "delivered",
-    label: "Delivered to Doorstep",
-    timestamp: "Estimated 01:25 PM",
-    description: "Fresh and piping hot handoff.",
-    completed: false,
-    current: false,
-  },
-];
+const timelineStatuses = [
+  "pending",
+  "confirmed",
+  "preparing",
+  "ready_for_pickup",
+  "rider_assigned",
+  "rider_accepted",
+  "picked_up",
+  "out_for_delivery",
+  "arrived",
+  "delivered",
+] as const;
 
-// Direct port of OrderTrackingScreen.tsx. The web's animated SVG road map
-// becomes a simplified stylized panel with an animated courier marker
-// (full native maps would use react-native-maps in a production build).
+const timelineLabels: Record<string, string> = {
+  pending: "Order Placed",
+  confirmed: "Confirmed",
+  preparing: "Preparing",
+  ready_for_pickup: "Ready for Pickup",
+  rider_assigned: "Rider Assigned",
+  rider_accepted: "Rider Accepted",
+  picked_up: "Picked Up",
+  out_for_delivery: "Out for Delivery",
+  arrived: "Rider Arrived",
+  delivered: "Delivered",
+};
+
+function money(value: number | string) {
+  return `₵${Number(value).toFixed(2)}`;
+}
+function formatTime(value: string | null | undefined) {
+  return value
+    ? new Date(value).toLocaleString(undefined, {
+        dateStyle: "short",
+        timeStyle: "short",
+      })
+    : "";
+}
+
 export default function OrderTrackingScreen() {
-  const navigation = useRouter();
-  const { activeTrackingOrder: order } = useApp();
-  const rider = order?.rider;
+  const { orderId } = useLocalSearchParams<{ orderId?: string }>();
+  const { authUser } = useApp();
+  const [tracking, setTracking] = useState<CustomerOrderTracking | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [showItems, setShowItems] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState<
-    { sender: "rider" | "user"; text: string }[]
-  >([
-    {
-      sender: "rider",
-      text: "Hi! I've picked up your fresh hot order from Shamsiya Special Food kitchen. On my way to your address!",
+  const loadTracking = useCallback(
+    async (isRefresh = false) => {
+      if (!authUser || !orderId) {
+        setError("We could not find that order.");
+        setLoading(false);
+        return;
+      }
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+      setError(null);
+      try {
+        setTracking(await fetchCustomerOrderTracking(orderId));
+      } catch (loadError) {
+        console.error("Unable to load customer order tracking:", loadError);
+        setError("Unable to load your order information. Please try again.");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
     },
-  ]);
-  const [riderInput, setRiderInput] = useState("");
-  const [isCallOpen, setIsCallOpen] = useState(false);
-  const [riderProgress, setRiderProgress] = useState(65);
+    [authUser, orderId],
+  );
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setRiderProgress((prev) => (prev < 90 ? prev + 1 : prev));
-    }, 4000);
-    return () => clearInterval(timer);
-  }, []);
+    void loadTracking();
+    const interval = setInterval(() => {
+      void loadTracking(true);
+    }, 12000);
+    return () => clearInterval(interval);
+  }, [loadTracking]);
 
-  if (!order || !rider) {
-    return (
-      <View className="flex-1 bg-[#F7F4EE]">
-        <AppHeader
-          currentScreen="OrderTracking"
-          title="Order Tracking"
-          showBack
-        />
-        <View className="flex-1 items-center justify-center p-8">
-          <Text className="text-xs text-[#8E7668]">
-            No active order to track.
-          </Text>
-        </View>
-      </View>
-    );
-  }
+  const timeline = useMemo(() => {
+    const status = tracking?.order.status;
+    const currentIndex = status
+      ? timelineStatuses.indexOf(status as (typeof timelineStatuses)[number])
+      : -1;
+    return timelineStatuses.map((step, index) => ({
+      status: step,
+      label: timelineLabels[step],
+      completed: currentIndex >= 0 && index < currentIndex,
+      current: currentIndex === index,
+      timestamp:
+        step === "pending"
+          ? tracking?.order.created_at
+          : step === "rider_accepted"
+            ? tracking?.order.accepted_at
+            : step === "picked_up"
+              ? tracking?.order.picked_up_at
+              : step === "delivered"
+                ? tracking?.order.delivered_at
+                : null,
+    }));
+  }, [tracking]);
 
-  const handleSendMessage = () => {
-    if (!riderInput.trim()) return;
-    setChatMessages((prev) => [...prev, { sender: "user", text: riderInput }]);
-    setRiderInput("");
-    setTimeout(() => {
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          sender: "rider",
-          text: "Got it! Arriving in about 8 minutes. See you soon!",
-        },
-      ]);
-    }, 1500);
-  };
+  const isTerminal = tracking
+    ? tracking.order.status === "cancelled" ||
+      tracking.order.status === "failed" ||
+      tracking.order.status === "delivered"
+    : false;
+  const rider = tracking?.rider;
+  const profile = tracking?.rider_profile;
+  const location = tracking?.location;
 
   return (
     <View className="flex-1 bg-[#F7F4EE]">
-      <AppHeader
-        currentScreen="OrderTracking"
-        title="Order Tracking"
-        showBack
-      />
+      <AppHeader currentScreen="Order Tracking" title="Track Order" showBack />
       <ScrollView
         className="flex-1 px-4"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void loadTracking(true)}
+            tintColor="#E86A17"
+          />
+        }
         contentContainerStyle={{
           paddingVertical: 16,
-          paddingBottom: 48,
+          paddingBottom: 40,
           gap: 16,
         }}
       >
-        {/* 1. STYLIZED LIVE MAP */}
-        <View className="relative w-full h-56 rounded-3xl overflow-hidden bg-[#24292e] border border-[#613D2D]/20">
-          <View className="absolute top-8 left-8 items-center">
-            <View className="w-8 h-8 rounded-full bg-[#2D1810] border-2 border-white items-center justify-center">
-              <Store width={16} height={16} color="#FFA028" />
-            </View>
-            <Text className="text-[9px] font-extrabold text-white bg-black/60 px-1.5 py-0.5 rounded-md mt-1">
-              Shamsiya Kitchen
-            </Text>
-          </View>
-
-          <View className="absolute bottom-8 right-8 items-center">
-            <View className="w-8 h-8 rounded-full bg-[#E86A17] border-2 border-white items-center justify-center">
-              <MapPin width={16} height={16} color="#fff" />
-            </View>
-            <Text className="text-[9px] font-extrabold text-white bg-black/60 px-1.5 py-0.5 rounded-md mt-1">
-              Your Home
-            </Text>
-          </View>
-
-          <View
-            className="absolute items-center"
-            style={{ top: "38%", left: `${riderProgress}%` }}
-          >
-            <View className="w-10 h-10 rounded-full bg-emerald-500 border-2 border-white items-center justify-center">
-              <Navigation width={20} height={20} color="#fff" fill="#fff" />
-            </View>
-            <Text className="text-[9px] font-black text-black bg-white px-2 py-0.5 rounded-full mt-1">
-              {rider.name.split(" ")[0]} ({100 - riderProgress} mins)
-            </Text>
-          </View>
-
-          <View className="absolute top-3 right-3 bg-white/90 px-3 py-1.5 rounded-2xl border border-[#613D2D]/10 flex-row items-center gap-1.5">
-            <Clock width={16} height={16} color="#E86A17" />
-            <View>
-              <Text className="text-[10px] text-[#8E7668]">ETA Arrival</Text>
-              <Text className="text-xs font-bold text-[#2D1810]">
-                {order.estimatedDeliveryTime || "15–20 mins"}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* 2. RIDER CONTACT */}
-        <RiderCard
-          rider={rider}
-          onCall={() => setIsCallOpen(true)}
-          onMessage={() => setIsChatOpen(true)}
-        />
-
-        {/* 3. LIVE STATUS STEPPER */}
-        <View className="bg-white p-4 rounded-3xl border border-[#613D2D]/12 gap-3">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-xs font-extrabold text-[#2D1810] uppercase tracking-wider">
-              Live Order Status
-            </Text>
-            <StatusBadge status={order.status} />
-          </View>
-
-          <OrderTimeline steps={steps} />
-        </View>
-
-        {/* 4. EXPANDABLE RECEIPT */}
-        <View className="bg-white rounded-3xl border border-[#613D2D]/12 overflow-hidden">
-          <Pressable
-            onPress={() => setShowItems(!showItems)}
-            className="p-4 flex-row items-center justify-between"
-          >
-            <View>
-              <Text className="text-xs font-extrabold text-[#2D1810]">
-                Order #{order.orderNumber} Receipt
-              </Text>
-              <Text className="text-[10px] text-[#8E7668]">
-                {order.items.length} items • ₵{order.total.toFixed(2)} total
-              </Text>
-            </View>
-            {showItems ? (
-              <ChevronUp width={16} height={16} color="#8E7668" />
-            ) : (
-              <ChevronDown width={16} height={16} color="#8E7668" />
-            )}
-          </Pressable>
-
-          {showItems ? (
-            <View className="p-4 pt-0 border-t border-neutral-100 gap-2">
-              {order.items.map((it, idx) => (
-                <View
-                  key={idx}
-                  className="flex-row items-center justify-between py-1"
-                >
-                  <View className="flex-row items-center gap-2">
-                    <Text className="font-bold text-[#E86A17] text-xs">
-                      {it.quantity}x
-                    </Text>
-                    <Text className="text-[#2D1810] text-xs">
-                      {it.food.name}
-                    </Text>
-                  </View>
-                  <Text className="font-bold text-[#2D1810] text-xs">
-                    ₵{it.itemTotalPrice.toFixed(2)}
+        {loading ? <ActivityIndicator size="large" color="#E86A17" /> : null}
+        {error ? (
+          <ErrorState message={error} onRetry={() => void loadTracking()} />
+        ) : null}
+        {!loading && !error && tracking ? (
+          <>
+            <View className="gap-3 bg-white p-4 rounded-3xl border border-[#613D2D]/12">
+              <View className="flex-row items-start justify-between">
+                <View>
+                  <Text className="text-[10px] text-[#8E7668]">
+                    Order number
                   </Text>
+                  <Text className="text-base font-extrabold text-[#2D1810]">
+                    #{tracking.order.order_number}
+                  </Text>
+                </View>
+                <StatusBadge status={tracking.order.status} />
+              </View>
+              <View className="flex-row justify-between border-t border-neutral-100 pt-3">
+                <View>
+                  <Text className="text-[10px] text-[#8E7668]">Total</Text>
+                  <Text className="text-sm font-black text-[#E86A17]">
+                    {money(tracking.order.total)}
+                  </Text>
+                </View>
+                <View className="items-end">
+                  <Text className="text-[10px] text-[#8E7668]">Payment</Text>
+                  <Text className="text-xs font-bold text-[#2D1810]">
+                    {tracking.order.payment_status}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View className="gap-3 bg-white p-4 rounded-3xl border border-[#613D2D]/12">
+              <Text className="text-xs font-extrabold uppercase tracking-wider text-[#2D1810]">
+                Delivery Progress
+              </Text>
+              {timeline.map((step, index) => (
+                <View
+                  key={step.status}
+                  className="flex-row items-start gap-3 relative"
+                >
+                  {index < timeline.length - 1 ? (
+                    <View
+                      className={`absolute left-3.5 top-7 bottom-[-16px] w-0.5 ${step.completed ? "bg-emerald-500" : "bg-neutral-200"}`}
+                    />
+                  ) : null}
+                  <View
+                    className={`w-7 h-7 rounded-full items-center justify-center ${step.completed ? "bg-emerald-500" : step.current ? "bg-[#E86A17]" : "bg-neutral-200"}`}
+                  >
+                    {step.completed ? (
+                      <CheckCircle2 width={16} height={16} color="#fff" />
+                    ) : (
+                      <View className="w-2 h-2 rounded-full bg-white" />
+                    )}
+                  </View>
+                  <View className="flex-1">
+                    <View className="flex-row items-center justify-between">
+                      <Text
+                        className={`text-xs font-extrabold ${step.current ? "text-[#E86A17]" : step.completed ? "text-[#2D1810]" : "text-neutral-400"}`}
+                      >
+                        {step.label}
+                      </Text>
+                      {step.timestamp ? (
+                        <Text className="text-[9px] text-neutral-400">
+                          {formatTime(step.timestamp)}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {step.current ? (
+                      <Text className="text-[10px] text-[#8E7668] mt-0.5">
+                        Current order status
+                      </Text>
+                    ) : null}
+                  </View>
                 </View>
               ))}
+              {tracking.order.status === "cancelled" ||
+              tracking.order.status === "failed" ? (
+                <View className="mt-1 rounded-xl bg-red-50 p-3">
+                  <Text className="text-xs font-bold text-red-800">
+                    {tracking.order.status === "cancelled"
+                      ? "This order was cancelled."
+                      : "This order could not be completed."}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
 
-              <View className="pt-2 border-t border-dashed border-neutral-200 gap-1">
-                <View className="flex-row justify-between">
-                  <Text className="text-xs text-[#613D2D]">Subtotal</Text>
-                  <Text className="text-xs text-[#613D2D]">
-                    ₵{order.subtotal.toFixed(2)}
-                  </Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-xs text-[#613D2D]">
-                    Delivery & Fees
-                  </Text>
-                  <Text className="text-xs text-[#613D2D]">
-                    ₵{(order.deliveryFee + order.tax).toFixed(2)}
-                  </Text>
-                </View>
-                {order.tip ? (
-                  <View className="flex-row justify-between">
-                    <Text className="text-xs text-[#613D2D]">Rider Tip</Text>
-                    <Text className="text-xs text-[#613D2D]">
-                      ₵{order.tip.toFixed(2)}
+            <View className="gap-3 bg-white p-4 rounded-3xl border border-[#613D2D]/12">
+              <View className="flex-row items-center gap-2">
+                <MapPin width={16} height={16} color="#E86A17" />
+                <Text className="text-xs font-extrabold uppercase tracking-wider text-[#2D1810]">
+                  Live Location
+                </Text>
+              </View>
+              {location?.latitude !== null &&
+              location?.latitude !== undefined &&
+              location?.longitude !== null &&
+              location?.longitude !== undefined ? (
+                <View className="gap-2 rounded-2xl bg-[#F4EFE6] p-4">
+                  <View className="flex-row items-center gap-2">
+                    <Navigation width={18} height={18} color="#E86A17" />
+                    <Text className="text-xs font-bold text-[#2D1810]">
+                      Rider location available
                     </Text>
                   </View>
-                ) : null}
-                <View className="flex-row justify-between pt-1">
-                  <Text className="font-black text-sm text-[#2D1810]">
-                    Total Paid
+                  <Text className="text-[11px] text-[#613D2D]">
+                    Latitude {location.latitude.toFixed(6)} · Longitude{" "}
+                    {location.longitude.toFixed(6)}
                   </Text>
-                  <Text className="font-black text-sm text-[#E86A17]">
-                    ₵{order.total.toFixed(2)}
+                  {location.updated_at ? (
+                    <Text className="text-[10px] text-[#8E7668]">
+                      Updated {formatTime(location.updated_at)}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : (
+                <View className="gap-1 rounded-2xl bg-[#F4EFE6] p-4">
+                  <Text className="text-xs font-bold text-[#2D1810]">
+                    Rider location is not available yet.
+                  </Text>
+                  <Text className="text-[10px] text-[#8E7668]">
+                    We will refresh this section as delivery information
+                    changes.
                   </Text>
                 </View>
-              </View>
+              )}
+              {tracking.order.delivery_latitude !== null &&
+              tracking.order.delivery_longitude !== null ? (
+                <Text className="text-[10px] text-[#8E7668]">
+                  Delivery coordinates are available for this order.
+                </Text>
+              ) : (
+                <Text className="text-[10px] text-[#8E7668]">
+                  Delivery location coordinates are unavailable.
+                </Text>
+              )}
             </View>
-          ) : null}
-        </View>
-      </ScrollView>
 
-      {/* RIDER CHAT MODAL */}
-      <BottomSheet
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-        title={`Message Rider (${rider.name})`}
-      >
-        <View style={{ height: 280 }} className="justify-between">
-          <ScrollView className="flex-1" contentContainerStyle={{ gap: 8 }}>
-            {chatMessages.map((msg, i) => (
-              <View
-                key={i}
-                className={`flex-row ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
-              >
-                <View
-                  className={`p-3 rounded-2xl max-w-[80%] ${
-                    msg.sender === "user" ? "bg-[#2D1810]" : "bg-[#F4EFE6]"
-                  }`}
-                >
-                  <Text
-                    className={`text-xs leading-relaxed ${
-                      msg.sender === "user" ? "text-white" : "text-[#2D1810]"
-                    }`}
-                  >
-                    {msg.text}
-                  </Text>
-                </View>
+            <View className="gap-3 bg-white p-4 rounded-3xl border border-[#613D2D]/12">
+              <View className="flex-row items-center gap-2">
+                <Bike width={16} height={16} color="#E86A17" />
+                <Text className="text-xs font-extrabold uppercase tracking-wider text-[#2D1810]">
+                  Rider
+                </Text>
               </View>
-            ))}
-          </ScrollView>
+              {rider ? (
+                <>
+                  <View className="flex-row items-center gap-3">
+                    <View className="w-11 h-11 rounded-2xl bg-[#F4EFE6] items-center justify-center">
+                      <Bike width={20} height={20} color="#2D1810" />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-sm font-extrabold text-[#2D1810]">
+                        {profile?.full_name || "Assigned rider"}
+                      </Text>
+                      <Text className="text-[11px] text-[#8E7668]">
+                        {rider.vehicle_type || "Vehicle unavailable"}
+                        {rider.vehicle_number
+                          ? ` · ${rider.vehicle_number}`
+                          : ""}
+                      </Text>
+                    </View>
+                    {rider.rating !== null ? (
+                      <View className="flex-row items-center gap-1">
+                        <Star
+                          width={13}
+                          height={13}
+                          color="#F59E0B"
+                          fill="#F59E0B"
+                        />
+                        <Text className="text-xs font-bold text-[#2D1810]">
+                          {Number(rider.rating).toFixed(1)}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text
+                    className={`text-xs font-bold ${rider.is_online ? "text-emerald-700" : "text-[#8E7668]"}`}
+                  >
+                    {rider.is_online ? "Online" : "Offline"}
+                  </Text>
+                </>
+              ) : (
+                <Text className="text-xs text-[#8E7668]">
+                  Your order is waiting for a rider to be assigned.
+                </Text>
+              )}
+            </View>
 
-          <View className="flex-row gap-2 pt-2">
-            <TextInput
-              value={riderInput}
-              onChangeText={setRiderInput}
-              placeholder="e.g. Please leave at front door..."
-              placeholderTextColor="rgba(142,118,104,0.6)"
-              className="flex-1 text-xs px-3 py-2 rounded-xl bg-white border border-[#613D2D]/15 text-[#2D1810]"
-              onSubmitEditing={handleSendMessage}
-            />
             <Pressable
-              onPress={handleSendMessage}
-              className="px-3 py-2 rounded-xl bg-[#E86A17] items-center justify-center"
+              onPress={() => void loadTracking(true)}
+              className="self-center flex-row items-center gap-1.5 py-2"
             >
-              <Send width={14} height={14} color="#fff" />
+              <RefreshCw width={14} height={14} color="#E86A17" />
+              <Text className="text-xs font-bold text-[#E86A17]">
+                Refresh tracking
+              </Text>
             </Pressable>
-          </View>
-        </View>
-      </BottomSheet>
-
-      {/* RIDER CALL MODAL */}
-      <BottomSheet
-        isOpen={isCallOpen}
-        onClose={() => setIsCallOpen(false)}
-        title={`Calling ${rider.name}`}
-      >
-        <View className="items-center py-6 gap-3">
-          <Image
-            source={{ uri: rider.avatar }}
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: 40,
-              borderWidth: 4,
-              borderColor: "rgba(232,106,23,0.3)",
-            }}
-          />
-          <View className="items-center">
-            <Text className="text-sm font-extrabold text-[#2D1810]">
-              {rider.name}
-            </Text>
-            <Text className="text-xs text-[#8E7668]">{rider.phone}</Text>
-            <Text className="text-[11px] text-emerald-600 font-bold mt-1">
-              Connecting secure VoIP line...
-            </Text>
-          </View>
-
-          <Pressable
-            onPress={() => setIsCallOpen(false)}
-            className="mt-4 px-6 py-2 rounded-2xl bg-red-600"
-          >
-            <Text className="text-white text-xs font-bold">End Call</Text>
-          </Pressable>
-        </View>
-      </BottomSheet>
+            {isTerminal ? (
+              <Text className="text-center text-[10px] text-[#8E7668]">
+                This order is no longer active, but its delivery information
+                remains available.
+              </Text>
+            ) : null}
+          </>
+        ) : null}
+      </ScrollView>
     </View>
   );
 }

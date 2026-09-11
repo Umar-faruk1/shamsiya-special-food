@@ -71,7 +71,11 @@ export const QuantitySelector: React.FC<{
       <Pressable
         onPress={onDecrease}
         disabled={quantity <= min}
-        style={{ width: btnSize, height: btnSize, opacity: quantity <= min ? 0.3 : 1 }}
+        style={{
+          width: btnSize,
+          height: btnSize,
+          opacity: quantity <= min ? 0.3 : 1,
+        }}
         className="items-center justify-center rounded-lg active:bg-white"
         accessibilityLabel="Decrease quantity"
       >
@@ -89,7 +93,11 @@ export const QuantitySelector: React.FC<{
       <Pressable
         onPress={onIncrease}
         disabled={quantity >= max}
-        style={{ width: btnSize, height: btnSize, opacity: quantity >= max ? 0.3 : 1 }}
+        style={{
+          width: btnSize,
+          height: btnSize,
+          opacity: quantity >= max ? 0.3 : 1,
+        }}
         className="items-center justify-center rounded-lg active:bg-white"
         accessibilityLabel="Increase quantity"
       >
@@ -103,14 +111,91 @@ const statusConfig: Record<
   string,
   { label: string; bg: string; text: string; dot: string }
 > = {
-  placed: { label: "Order Placed", bg: "#EFF6FF", text: "#1D4ED8", dot: "#3B82F6" },
-  confirmed: { label: "Confirmed", bg: "#EEF2FF", text: "#4338CA", dot: "#6366F1" },
-  preparing: { label: "Cooking in Kitchen", bg: "#FFFBEB", text: "#B45309", dot: "#F59E0B" },
-  ready: { label: "Ready for Pickup", bg: "#FAF5FF", text: "#7E22CE", dot: "#A855F7" },
-  picked_up: { label: "Picked Up", bg: "#FFF7ED", text: "#C2410C", dot: "#F97316" },
-  on_the_way: { label: "Rider on the Way", bg: "#ECFDF5", text: "#065F46", dot: "#10B981" },
-  delivered: { label: "Delivered", bg: "#F0FDF4", text: "#15803D", dot: "#16A34A" },
-  cancelled: { label: "Cancelled", bg: "#FEF2F2", text: "#B91C1C", dot: "#EF4444" },
+  pending: {
+    label: "Order Placed",
+    bg: "#EFF6FF",
+    text: "#1D4ED8",
+    dot: "#3B82F6",
+  },
+  placed: {
+    label: "Order Placed",
+    bg: "#EFF6FF",
+    text: "#1D4ED8",
+    dot: "#3B82F6",
+  },
+  confirmed: {
+    label: "Confirmed",
+    bg: "#EEF2FF",
+    text: "#4338CA",
+    dot: "#6366F1",
+  },
+  preparing: {
+    label: "Preparing",
+    bg: "#FFFBEB",
+    text: "#B45309",
+    dot: "#F59E0B",
+  },
+  ready_for_pickup: {
+    label: "Ready for Pickup",
+    bg: "#FAF5FF",
+    text: "#7E22CE",
+    dot: "#A855F7",
+  },
+  ready: {
+    label: "Ready for Pickup",
+    bg: "#FAF5FF",
+    text: "#7E22CE",
+    dot: "#A855F7",
+  },
+  rider_assigned: {
+    label: "Rider Assigned",
+    bg: "#FFF7ED",
+    text: "#C2410C",
+    dot: "#F97316",
+  },
+  rider_accepted: {
+    label: "Rider Accepted",
+    bg: "#FFF7ED",
+    text: "#C2410C",
+    dot: "#F97316",
+  },
+  picked_up: {
+    label: "Picked Up",
+    bg: "#FFF7ED",
+    text: "#C2410C",
+    dot: "#F97316",
+  },
+  out_for_delivery: {
+    label: "Out for Delivery",
+    bg: "#ECFDF5",
+    text: "#065F46",
+    dot: "#10B981",
+  },
+  arrived: {
+    label: "Rider Arrived",
+    bg: "#ECFDF5",
+    text: "#065F46",
+    dot: "#10B981",
+  },
+  on_the_way: {
+    label: "Rider on the Way",
+    bg: "#ECFDF5",
+    text: "#065F46",
+    dot: "#10B981",
+  },
+  delivered: {
+    label: "Delivered",
+    bg: "#F0FDF4",
+    text: "#15803D",
+    dot: "#16A34A",
+  },
+  cancelled: {
+    label: "Cancelled",
+    bg: "#FEF2F2",
+    text: "#B91C1C",
+    dot: "#EF4444",
+  },
+  failed: { label: "Failed", bg: "#FEF2F2", text: "#B91C1C", dot: "#EF4444" },
 };
 
 export const StatusBadge: React.FC<{ status: OrderStatus | string }> = ({
@@ -128,7 +213,10 @@ export const StatusBadge: React.FC<{ status: OrderStatus | string }> = ({
       className="flex-row items-center gap-1.5 px-2.5 py-1 rounded-full self-start"
       style={{ backgroundColor: item.bg }}
     >
-      <View className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.dot }} />
+      <View
+        className="w-1.5 h-1.5 rounded-full"
+        style={{ backgroundColor: item.dot }}
+      />
       <Text className="text-xs font-semibold" style={{ color: item.text }}>
         {item.label}
       </Text>

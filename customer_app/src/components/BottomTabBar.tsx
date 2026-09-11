@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Home, Compass, ReceiptText, User } from "lucide-react-native";
 import { useRouter, usePathname } from "expo-router";
 import { FloatingCameraButton } from "./FloatingCameraButton";
-import { useApp } from "../context/AppContext";
 
 const ACTIVE = "#2D1810";
 const INACTIVE = "#8E7668";
@@ -14,11 +13,6 @@ export function BottomTabBar() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const pathname = usePathname();
-  const { orders } = useApp();
-
-  const activeOrderCount = orders.filter(
-    (o) => o.status !== "delivered" && o.status !== "cancelled",
-  ).length;
 
   const TabButton = ({
     label,
@@ -96,12 +90,7 @@ export function BottomTabBar() {
           />
         </View>
 
-        <TabButton
-          label="Orders"
-          icon={ReceiptText}
-          path="/(tabs)/orders"
-          badge={activeOrderCount}
-        />
+        <TabButton label="Orders" icon={ReceiptText} path="/(tabs)/orders" />
         <TabButton label="Profile" icon={User} path="/(tabs)/profile" />
       </View>
     </View>

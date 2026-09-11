@@ -245,7 +245,7 @@ export default function ScanResultsScreen() {
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => navigation.push("/explore")}
+                onPress={() => navigation.push("/(tabs)/explore")}
                 className="flex-1 py-3 rounded-2xl bg-white border border-[#613D2D]/20 flex-row items-center justify-center gap-1.5"
               >
                 <Search width={16} height={16} color="#8E7668" />

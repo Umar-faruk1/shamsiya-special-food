@@ -235,7 +235,7 @@ export default function FavoritesScreen() {
             title="No Favorites Saved Yet"
             description="Tap the heart icon on any delicacy across Shamsiya to save it here for fast ordering."
             actionText="Discover Food"
-            onAction={() => navigation.push("/explore")}
+            onAction={() => navigation.push("/(tabs)/explore")}
           />
         )}
       </ScrollView>
