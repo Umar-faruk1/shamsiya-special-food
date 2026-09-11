@@ -10,7 +10,6 @@ import type { User as SupabaseUser } from "@supabase/supabase-js";
 import {
   MOCK_ORDERS,
   MOCK_USER,
-  MOCK_NOTIFICATIONS,
   MOCK_RECENT_SCANS,
   MOCK_RIDER,
 } from "../data/mockData";
@@ -28,6 +27,12 @@ import {
   CartSelectedOption,
 } from "../types";
 import { supabase } from "../api/supabase";
+import {
+  CustomerNotification,
+  fetchCustomerNotifications,
+  markAllCustomerNotificationsRead,
+  markCustomerNotificationRead,
+} from "../api/notifications";
 
 /**
  * This context is the direct port of the state + handlers that used to
@@ -62,7 +67,7 @@ interface AppContextValue {
   cartItems: CartItem[];
   orders: Order[];
   favorites: string[];
-  notifications: typeof MOCK_NOTIFICATIONS;
+  notifications: CustomerNotification[];
   recentScans: FoodScanResult[];
   latestScanResult: FoodScanResult | null;
   activeTrackingOrder: Order | null;
@@ -107,7 +112,9 @@ interface AppContextValue {
 
   // Notifications
   unreadNotificationsCount: number;
-  handleMarkAllNotificationsRead: () => void;
+  refreshNotifications: () => Promise<void>;
+  handleMarkNotificationRead: (id: string) => Promise<void>;
+  handleMarkAllNotificationsRead: () => Promise<void>;
 
   // Addresses & payments
   handleAddAddress: (addr: UserAddress) => void;
@@ -133,7 +140,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     "food-3",
     "food-9",
   ]);
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<CustomerNotification[]>(
+    [],
+  );
   const [recentScans, setRecentScans] =
     useState<FoodScanResult[]>(MOCK_RECENT_SCANS);
   const [latestScanResult, setLatestScanResult] =
@@ -295,6 +304,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       listener.subscription.unsubscribe();
     };
   }, [loadCustomerProfile]);
+
+  const refreshNotifications = useCallback(async () => {
+    if (!authUser) {
+      setNotifications([]);
+      return;
+    }
+    const nextNotifications = await fetchCustomerNotifications(authUser.id);
+    setNotifications(nextNotifications);
+  }, [authUser]);
+
+  useEffect(() => {
+    void refreshNotifications().catch((error) => {
+      console.error("Unable to load customer notifications:", error);
+    });
+  }, [refreshNotifications]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {
@@ -621,10 +645,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [cartItems, user],
   );
 
-  const handleMarkAllNotificationsRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    showToast("All notifications marked as read");
-  }, [showToast]);
+  const handleMarkNotificationRead = useCallback(
+    async (id: string) => {
+      if (!authUser) return;
+      const previous = notifications;
+      setNotifications((current) =>
+        current.map((notification) =>
+          notification.id === id
+            ? { ...notification, is_read: true }
+            : notification,
+        ),
+      );
+      try {
+        await markCustomerNotificationRead(id, authUser.id);
+      } catch (error) {
+        setNotifications(previous);
+        throw error;
+      }
+    },
+    [authUser, notifications],
+  );
+
+  const handleMarkAllNotificationsRead = useCallback(async () => {
+    if (!authUser) return;
+    const previous = notifications;
+    setNotifications((current) =>
+      current.map((notification) => ({ ...notification, is_read: true })),
+    );
+    try {
+      await markAllCustomerNotificationsRead(authUser.id);
+      showToast("All notifications marked as read");
+    } catch (error) {
+      setNotifications(previous);
+      throw error;
+    }
+  }, [authUser, notifications, showToast]);
 
   const handleAddAddress = useCallback(
     (newAddr: UserAddress) => {
@@ -688,7 +743,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const cartTotalItems = cartItems.reduce((acc, it) => acc + it.quantity, 0);
-  const unreadNotificationsCount = notifications.filter((n) => !n.read).length;
+  const unreadNotificationsCount = notifications.filter(
+    (n) => !n.is_read,
+  ).length;
 
   const value: AppContextValue = {
     foodItems,
@@ -725,6 +782,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handleScanCompleted,
     handlePlaceOrder,
     unreadNotificationsCount,
+    refreshNotifications,
+    handleMarkNotificationRead,
     handleMarkAllNotificationsRead,
     handleAddAddress,
     handleDeleteAddress,

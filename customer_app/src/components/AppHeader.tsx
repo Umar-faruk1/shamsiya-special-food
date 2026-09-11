@@ -45,8 +45,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 }) => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { cartTotalItems } = useApp();
+  const { cartTotalItems, unreadNotificationsCount } = useApp();
   const displayedCartCount = cartCount ?? cartTotalItems;
+  const displayedUnreadCount = unreadCount || unreadNotificationsCount;
 
   const isMainTab = ["Home", "Explore", "Orders", "Profile"].includes(
     currentScreen,
@@ -150,8 +151,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             accessibilityLabel="View Notifications"
           >
             <Bell width={16} height={16} color="#2D1810" />
-            {unreadCount > 0 ? (
-              <View className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-[#E86A17] border-2 border-[#FDFBF7]" />
+            {displayedUnreadCount > 0 ? (
+              <View className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#E86A17] border border-[#FDFBF7] items-center justify-center">
+                <Text className="text-[9px] font-extrabold text-white">
+                  {displayedUnreadCount > 99 ? "99+" : displayedUnreadCount}
+                </Text>
+              </View>
             ) : null}
           </Pressable>
 

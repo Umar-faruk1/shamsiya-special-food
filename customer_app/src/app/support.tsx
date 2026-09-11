@@ -13,57 +13,14 @@ import { UserAddress, PaymentMethod } from "../types";
 import {
   AddressCard,
   PaymentMethodCard,
-  NotificationItem,
   BottomSheet,
 } from "../components/CommonModalsAndCards";
 import { PrimaryButton } from "../components/Buttons";
-import { RatingStars } from "../components/BadgesAndRatings";
 import { AppHeader } from "../components/AppHeader";
 import { useApp } from "../context/AppContext";
 
 // Direct port of SupportScreens.tsx (6 screens). Each is wrapped with
 // AppHeader + ScrollView since they're pushed as standalone stack screens.
-
-// ---------- NOTIFICATIONS ----------
-export function NotificationsScreen() {
-  const { notifications, handleMarkAllNotificationsRead, favorites } = useApp();
-
-  return (
-    <View className="flex-1 bg-[#F7F4EE]">
-      <AppHeader
-        currentScreen="Notifications"
-        title="Notifications"
-        showBack
-        favoritesCount={favorites.length}
-      />
-      <ScrollView
-        className="flex-1 px-4"
-        contentContainerStyle={{
-          paddingVertical: 16,
-          paddingBottom: 40,
-          gap: 12,
-        }}
-      >
-        <View className="flex-row items-center justify-between">
-          <Text className="text-sm font-extrabold text-[#2D1810]">
-            Notifications ({notifications.filter((n) => !n.read).length} Unread)
-          </Text>
-          <Pressable onPress={handleMarkAllNotificationsRead}>
-            <Text className="text-xs text-[#E86A17] font-bold">
-              Mark all as read
-            </Text>
-          </Pressable>
-        </View>
-
-        <View className="gap-2">
-          {notifications.map((n) => (
-            <NotificationItem key={n.id} notification={n} />
-          ))}
-        </View>
-      </ScrollView>
-    </View>
-  );
-}
 
 // ---------- ADDRESSES ----------
 export function AddressesScreen() {
@@ -352,73 +309,6 @@ export function PaymentMethodsScreen() {
           </PrimaryButton>
         </View>
       </BottomSheet>
-    </View>
-  );
-}
-
-// ---------- REVIEWS ----------
-const reviews = [
-  {
-    id: "rev-1",
-    dishName: "Shamsiya Royal Dum Biryani",
-    date: "August 14, 2026",
-    rating: 5,
-    comment:
-      "Incredible tender lamb shank! The saffron aroma filled the entire room. Will definitely reorder.",
-  },
-  {
-    id: "rev-2",
-    dishName: "Signature Beef Suya Skewers",
-    date: "August 8, 2026",
-    rating: 5,
-    comment:
-      "Authentic peppery Yaji spice. Perfectly charred and smoky. 10/10.",
-  },
-  {
-    id: "rev-3",
-    dishName: "Old Delhi Butter Chicken",
-    date: "July 29, 2026",
-    rating: 4.8,
-    comment: "Rich buttery sauce paired deliciously with garlic butter naan.",
-  },
-];
-
-export function ReviewsScreen() {
-  return (
-    <View className="flex-1 bg-[#F7F4EE]">
-      <AppHeader currentScreen="Reviews" title="My Reviews" showBack />
-      <ScrollView
-        className="flex-1 px-4"
-        contentContainerStyle={{
-          paddingVertical: 16,
-          paddingBottom: 40,
-          gap: 12,
-        }}
-      >
-        <Text className="text-sm font-extrabold text-[#2D1810]">
-          My Reviews & Ratings ({reviews.length})
-        </Text>
-
-        <View className="gap-3">
-          {reviews.map((rev) => (
-            <View
-              key={rev.id}
-              className="bg-white p-3.5 rounded-3xl border border-[#613D2D]/12 gap-1.5"
-            >
-              <View className="flex-row items-center justify-between">
-                <Text className="text-xs font-bold text-[#2D1810]">
-                  {rev.dishName}
-                </Text>
-                <Text className="text-[10px] text-neutral-400">{rev.date}</Text>
-              </View>
-              <RatingStars rating={rev.rating} size="sm" showNumber />
-              <Text className="text-xs text-[#613D2D] leading-relaxed mt-1">
-                "{rev.comment}"
-              </Text>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
     </View>
   );
 }

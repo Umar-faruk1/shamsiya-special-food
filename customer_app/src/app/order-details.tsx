@@ -12,6 +12,7 @@ import { AppHeader } from "../components/AppHeader";
 import { ErrorState } from "../components/CommonModalsAndCards";
 import { PrimaryButton } from "../components/Buttons";
 import { StatusBadge } from "../components/BadgesAndRatings";
+import { OrderReviewSection } from "../components/OrderReviewSection";
 import { useApp } from "../context/AppContext";
 import {
   CustomerOrder,
@@ -211,6 +212,15 @@ export default function OrderDetailsScreen() {
                 </Text>
               ) : null}
             </View>
+
+            {order.status === "delivered" ? (
+              <OrderReviewSection
+                orderId={order.id}
+                customerId={authUser?.id || ""}
+                items={items}
+                riderId={order.rider_id}
+              />
+            ) : null}
 
             {!terminalStatuses.has(order.status) ? (
               <PrimaryButton
