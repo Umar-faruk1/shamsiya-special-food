@@ -1,32 +1,74 @@
-// Small client for the app's own backend, which proxies to Gemini.
-// Per project setup, AI calls are routed through a backend endpoint
-// rather than calling the Gemini API directly from the client.
-// Point API_BASE_URL at your deployed backend (e.g. an Appwrite Function
-// or your own server) before shipping.
-const API_BASE_URL = "https://your-backend.example.com";
+import { supabase } from "./supabase";
+
+export type AIChatRequest = {
+  conversation_id?: string | null;
+  message: string;
+};
+
+export type AIRecommendation = {
+  menu_item_id: string;
+  name: string;
+  reason: string;
+  price?: number;
+};
+
+export type AIMessageResponse = {
+  id: string;
+  conversation_id: string;
+  role: "assistant";
+  message: string;
+  recommendations: AIRecommendation[];
+  created_at: string;
+};
+
+export type AIChatResponse = {
+  success: boolean;
+  conversation_id: string;
+  message: AIMessageResponse;
+  recommendations?: AIRecommendation[];
+};
 
 export async function sendAIChatMessage(
   message: string,
-  dietaryPreferences: string[]
-): Promise<{ reply: string }> {
-  const res = await fetch(`${API_BASE_URL}/api/ai/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, dietaryPreferences }),
-  });
-  if (!res.ok) throw new Error(`AI chat request failed: ${res.status}`);
-  return res.json();
+  conversationId?: string | null,
+): Promise<AIChatResponse> {
+  const trimmedMessage = message.trim();
+  if (!trimmedMessage) throw new Error("Message is required.");
+
+  const { data, error } = await supabase.functions.invoke<AIChatResponse>(
+    "ai-chat",
+    {
+      body: {
+        conversation_id: conversationId ?? null,
+        message: trimmedMessage,
+      } satisfies AIChatRequest,
+    },
+  );
+
+  if (error) throw error;
+  if (!data?.success || !data.message?.message) {
+    throw new Error("The AI service returned an empty response.");
+  }
+
+  return {
+    ...data,
+    message: {
+      ...data.message,
+      recommendations: data.message.recommendations ?? [],
+    },
+  };
 }
 
 export async function sendAIFoodScan(
   imageUri: string,
-  hint?: string
+  hint?: string,
 ): Promise<any> {
-  const res = await fetch(`${API_BASE_URL}/api/ai/scan`, {
+  const response = await fetch("https://your-backend.example.com/api/ai/scan", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ imageUri, hint }),
   });
-  if (!res.ok) throw new Error(`AI scan request failed: ${res.status}`);
-  return res.json();
+  if (!response.ok)
+    throw new Error(`AI scan request failed: ${response.status}`);
+  return response.json();
 }

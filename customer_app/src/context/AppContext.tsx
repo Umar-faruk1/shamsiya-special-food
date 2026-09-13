@@ -290,11 +290,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("CUSTOMER ACCESS TOKEN:", session?.access_token);
       if (mounted) void loadCustomerProfile(session?.user ?? null);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        console.log("CUSTOMER ACCESS TOKEN:", session?.access_token);
         if (mounted) void loadCustomerProfile(session?.user ?? null);
       },
     );

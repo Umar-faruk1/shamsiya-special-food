@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, ScrollView } from "react-native";
+import {
+  ActivityIndicator,
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { Sparkles, ArrowRight } from "lucide-react-native";
@@ -7,6 +13,7 @@ import { FoodItem } from "../types";
 import { FoodCard } from "../components/FoodCards";
 import { AppHeader } from "../components/AppHeader";
 import { useApp } from "../context/AppContext";
+import { AIRecommendation, sendAIChatMessage } from "../api/aiClient";
 
 const moods = [
   {
@@ -31,29 +38,56 @@ const moods = [
   },
 ];
 
+const moodPrompts: Record<string, string> = {
+  lunch_energy:
+    "Recommend filling lunch meals with high protein and sustained carbs.",
+  spicy_craving: "Recommend the spiciest available meals.",
+  comfort_feast: "Recommend comforting meals with rich gravies or rice.",
+  sweet_finish: "Recommend available sweet or refreshing menu items.",
+};
+
 // Direct port of AIRecommendationsScreen.tsx
 export default function AIRecommendationsScreen() {
   const navigation = useRouter();
-  const { foodItems, favorites, handleAddToCartQuick, handleToggleFavorite } =
-    useApp();
+  const {
+    foodItems,
+    favorites,
+    handleAddToCartQuick,
+    handleToggleFavorite,
+    authUser,
+  } = useApp();
   const [selectedMood, setSelectedMood] = useState<string>("lunch_energy");
+  const [recommendations, setRecommendations] = useState<AIRecommendation[]>(
+    [],
+  );
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const getFilteredRecommendations = (): FoodItem[] => {
-    switch (selectedMood) {
-      case "lunch_energy":
-        return [foodItems[0], foodItems[2], foodItems[5]].filter(Boolean);
-      case "spicy_craving":
-        return [foodItems[2], foodItems[7], foodItems[1]].filter(Boolean);
-      case "comfort_feast":
-        return [foodItems[3], foodItems[0], foodItems[4]].filter(Boolean);
-      case "sweet_finish":
-        return [foodItems[8], foodItems[9], foodItems[6]].filter(Boolean);
-      default:
-        return foodItems.slice(0, 4);
+  const requestRecommendations = async (mood: string) => {
+    if (!authUser || loading) {
+      if (!authUser) setError("Please sign in to use Shamsiya AI.");
+      return;
+    }
+    setSelectedMood(mood);
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await sendAIChatMessage(
+        moodPrompts[mood],
+        conversationId,
+      );
+      setConversationId(response.conversation_id);
+      setRecommendations(
+        response.message.recommendations ?? response.recommendations ?? [],
+      );
+    } catch (requestError) {
+      console.error("Unable to load AI recommendations:", requestError);
+      setError("Unable to load recommendations right now. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
-
-  const currentRecs = getFilteredRecommendations();
 
   const onSelectFood = (food: FoodItem) =>
     navigation.push({
@@ -129,7 +163,7 @@ export default function AIRecommendationsScreen() {
               return (
                 <Pressable
                   key={m.id}
-                  onPress={() => setSelectedMood(m.id)}
+                  onPress={() => void requestRecommendations(m.id)}
                   style={{ width: "48%" }}
                   className={`p-3 rounded-2xl border ${
                     isSelected
@@ -161,7 +195,7 @@ export default function AIRecommendationsScreen() {
         <View className="gap-3">
           <View className="flex-row items-center justify-between">
             <Text className="text-xs font-extrabold text-[#2D1810] uppercase tracking-wider">
-              Curated Matches ({currentRecs.length})
+              Recommendations ({recommendations.length})
             </Text>
             <View className="px-2 py-0.5 rounded-full bg-emerald-50">
               <Text className="text-[10px] text-emerald-700 font-bold">
@@ -170,17 +204,34 @@ export default function AIRecommendationsScreen() {
             </View>
           </View>
 
-          <View className="flex-row gap-3">
-            {currentRecs.map((food) => (
-              <FoodCard
-                key={food.id}
-                food={food}
-                onPress={onSelectFood}
-                onAddToCart={handleAddToCartQuick}
-                isFavorite={favorites.includes(food.id)}
-                onToggleFavorite={handleToggleFavorite}
-              />
-            ))}
+          {loading ? <ActivityIndicator size="large" color="#E86A17" /> : null}
+          {error ? <Text className="text-xs text-red-700">{error}</Text> : null}
+          {!loading && !error && !recommendations.length ? (
+            <Text className="text-xs text-[#8E7668]">
+              Choose a mood to get recommendations from the current menu.
+            </Text>
+          ) : null}
+          <View className="gap-3">
+            {recommendations.map((recommendation) => {
+              const food = foodItems.find(
+                (item) => item.id === recommendation.menu_item_id,
+              );
+              if (!food) return null;
+              return (
+                <View key={recommendation.menu_item_id} className="gap-2">
+                  <FoodCard
+                    food={food}
+                    onPress={onSelectFood}
+                    onAddToCart={handleAddToCartQuick}
+                    isFavorite={favorites.includes(food.id)}
+                    onToggleFavorite={handleToggleFavorite}
+                  />
+                  <Text className="-mt-1 text-[11px] leading-relaxed text-[#613D2D]">
+                    {recommendation.reason}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         </View>
 
