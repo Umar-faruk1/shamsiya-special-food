@@ -161,14 +161,17 @@ export interface FoodScanResult {
   id: string;
   timestamp: string;
   scannedImageUrl: string;
+  isFood: boolean;
   recognizedDishName: string;
+  message: string;
   confidence: number;
   detectedCuisine: string;
   description: string;
   detectedIngredients: string[];
   nutritionEstimate: NutritionalInfo;
   flavorProfile: string[];
-  matchedMenuDish: FoodItem;
+  matchedMenuDish?: FoodItem;
+  matchedMenuItems?: FoodItem[];
   matchPercentage: number;
   alternativeMatches?: { dish: FoodItem; matchPercentage: number }[];
 }

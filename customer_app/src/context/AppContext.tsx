@@ -7,12 +7,7 @@ import React, {
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
-import {
-  MOCK_ORDERS,
-  MOCK_USER,
-  MOCK_RECENT_SCANS,
-  MOCK_RIDER,
-} from "../data/mockData";
+import { MOCK_ORDERS, MOCK_USER, MOCK_RIDER } from "../data/mockData";
 import { fetchMenuData } from "../api/menu";
 import {
   FoodItem,
@@ -143,8 +138,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<CustomerNotification[]>(
     [],
   );
-  const [recentScans, setRecentScans] =
-    useState<FoodScanResult[]>(MOCK_RECENT_SCANS);
+  const [recentScans, setRecentScans] = useState<FoodScanResult[]>([]);
   const [latestScanResult, setLatestScanResult] =
     useState<FoodScanResult | null>(null);
   const [activeTrackingOrder, setActiveTrackingOrder] = useState<Order | null>(

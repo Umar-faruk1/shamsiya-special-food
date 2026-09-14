@@ -1,5 +1,14 @@
 import React, { useState, useRef } from "react";
-import { View, Text, Image, Pressable, Modal, ScrollView } from "react-native";
+import {
+  Alert,
+  View,
+  Text,
+  Image,
+  Pressable,
+  Modal,
+  ScrollView,
+  Platform,
+} from "react-native";
 import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
@@ -18,7 +27,8 @@ import {
 } from "lucide-react-native";
 import { FoodItem, FoodScanResult } from "../types";
 import { useApp } from "../context/AppContext";
-import { sendAIFoodScan } from "../api/aiClient";
+import { MatchedMenuItem, sendAIFoodScan } from "../api/aiClient";
+import { supabase } from "../api/supabase";
 
 const analysisSteps = [
   "Detecting food",
@@ -26,11 +36,6 @@ const analysisSteps = [
   "Finding matching meals",
 ];
 
-// Direct port of FoodScannerScreen.tsx. getUserMedia/canvas capture becomes
-// expo-camera's CameraView + takePictureAsync; gallery uses expo-image-picker.
-// The web's fetch("/api/ai/recognize-food") call is routed through your
-// backend per the requested architecture — dispatchFallbackResult below
-// simulates it until that endpoint is wired up.
 export default function FoodScannerScreen() {
   const navigation = useRouter();
   const { foodItems, recentScans, handleScanCompleted } = useApp();
@@ -43,25 +48,61 @@ export default function FoodScannerScreen() {
   >("viewfinder");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [analyzingStep, setAnalyzingStep] = useState(0);
+  const [scanError, setScanError] = useState<string | null>(null);
   const cameraRef = useRef<CameraView>(null);
 
   const handleCaptureShutter = async () => {
     if (!cameraRef.current) return;
-    const photo = await cameraRef.current.takePictureAsync({ quality: 0.9 });
-    if (photo?.uri) {
-      setCapturedImage(photo.uri);
-      setScanState("preview");
+    try {
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.9 });
+      if (photo?.uri) {
+        setScanError(null);
+        setCapturedImage(photo.uri);
+        setScanState("preview");
+      }
+    } catch (error) {
+      console.error("Unable to capture food image:", error);
+      Alert.alert(
+        "Camera error",
+        "We could not capture that image. Please try again.",
+      );
     }
   };
 
   const handleOpenGallery = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.9,
-    });
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      setCapturedImage(result.assets[0].uri);
-      setScanState("preview");
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.9,
+      });
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        setScanError(null);
+        setCapturedImage(result.assets[0].uri);
+        setScanState("preview");
+      }
+    } catch (error) {
+      console.error("Unable to choose food image:", error);
+      Alert.alert(
+        "Gallery error",
+        "We couldn't select that image. Please try again.",
+      );
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    if (Platform.OS === "web") {
+      setScanError(
+        "Camera capture is available on supported mobile devices. Please choose an image from your gallery.",
+      );
+      return;
+    }
+    if (permission?.granted) {
+      await handleCaptureShutter();
+      return;
+    }
+    const nextPermission = await requestPermission();
+    if (!nextPermission.granted) {
+      setScanError("Camera permission is required to take a food photo.");
     }
   };
 
@@ -69,112 +110,98 @@ export default function FoodScannerScreen() {
     setCapturedImage(null);
     setScanState("viewfinder");
     setAnalyzingStep(0);
+    setScanError(null);
   };
 
-  const dispatchFallbackResult = () => {
-    const matched = foodItems[0];
-    const scanResult: FoodScanResult = {
-      id: `scan-${Date.now()}`,
-      timestamp: "Today, Just now",
-      scannedImageUrl:
-        capturedImage ||
-        "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&auto=format&fit=crop&q=80",
-      recognizedDishName: "Jollof Rice",
-      confidence: 94,
-      detectedCuisine: "West African Special",
-      description:
-        "Authentic woodfire recipe simmered in rich tomato pepper base with spices and caramelized plantains.",
-      detectedIngredients: [
-        "Long-grain Rice",
-        "Plum Tomato Sauce",
-        "Scotch Bonnet Pepper",
-        "Thyme & Curry",
-      ],
-      nutritionEstimate: {
-        calories: 610,
-        protein: "32g",
-        carbs: "76g",
-        fat: "17g",
-      },
-      flavorProfile: ["Woodsmoke", "Savory Peppery", "Sweet Tangy"],
-      matchedMenuDish: matched,
-      matchPercentage: 94,
-      alternativeMatches: [
-        { dish: foodItems[1] || foodItems[0], matchPercentage: 89 },
-        { dish: foodItems[2] || foodItems[0], matchPercentage: 82 },
-      ],
+  const mapMatchedMenuItem = (item: MatchedMenuItem): FoodItem => {
+    const existingItem = foodItems.find((food) => food.id === item.id);
+    if (existingItem) return existingItem;
+    const price = Number(item.price);
+    const rating = Number(item.rating ?? 0);
+    const calories = item.calories ?? 0;
+    return {
+      id: item.id,
+      name: item.name,
+      category: "uncategorized",
+      price: Number.isFinite(price) ? price : 0,
+      rating: Number.isFinite(rating) ? rating : 0,
+      reviewsCount: item.review_count ?? 0,
+      prepTime:
+        item.preparation_time != null ? `${item.preparation_time} min` : "",
+      calories,
+      spicyLevel: 0,
+      isHalal: false,
+      isVegetarian: false,
+      tags: [],
+      image: item.image_url || "",
+      description: item.description || "",
+      ingredients: item.ingredients || [],
+      allergens: [],
+      nutrition: { calories, protein: "", carbs: "", fat: "" },
     };
-    handleScanCompleted(scanResult, () => navigation.push("/scan-result"));
   };
 
   const handleAnalyzeFood = async () => {
     if (!capturedImage) return;
     setScanState("analyzing");
     setAnalyzingStep(0);
+    setScanError(null);
 
     setTimeout(() => setAnalyzingStep(1), 700);
     setTimeout(() => setAnalyzingStep(2), 1400);
 
-    // Routed through the app's own backend (see src/api/aiClient.ts), which
-    // proxies to Gemini vision rather than calling it directly from the client.
     try {
-      const resData = await sendAIFoodScan(capturedImage);
-      if (resData?.success && resData.data) {
-        const raw = resData.data;
-        const matched =
-          foodItems.find((f) => f.id === raw.matchedMenuDishId) ||
-          foodItems.find((f) =>
-            f.name
-              .toLowerCase()
-              .includes((raw.recognizedDishName || "").toLowerCase()),
-          ) ||
-          foodItems[0];
-
-        const scanResult: FoodScanResult = {
-          id: `scan-${Date.now()}`,
-          timestamp: "Today, Just now",
-          scannedImageUrl: capturedImage,
-          recognizedDishName: raw.recognizedDishName || "Jollof Rice",
-          confidence: raw.confidence || 94,
-          detectedCuisine: raw.detectedCuisine || "West African Heritage",
-          description:
-            raw.description ||
-            "Smoky woodfire fragrant rice in a rich tomato base.",
-          detectedIngredients: raw.detectedIngredients || [
-            "Rice",
-            "Tomato",
-            "Spices",
-          ],
-          nutritionEstimate: raw.nutritionEstimate || {
-            calories: 610,
-            protein: "32g",
-            carbs: "76g",
-            fat: "17g",
-          },
-          flavorProfile: raw.flavorProfile || [
-            "Smoky",
-            "Rich Spiced",
-            "Tomato Savory",
-          ],
-          matchedMenuDish: matched,
-          matchPercentage: raw.matchPercentage || 94,
-          alternativeMatches: [
-            { dish: foodItems[2] || foodItems[1], matchPercentage: 88 },
-            { dish: foodItems[3] || foodItems[0], matchPercentage: 82 },
-          ],
-        };
-
-        setTimeout(() => {
-          handleScanCompleted(scanResult, () =>
-            navigation.push("/scan-result"),
-          );
-        }, 2100);
-      } else {
-        setTimeout(dispatchFallbackResult, 2100);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setScanError("Please sign in again to use Food Scan.");
+        navigation.replace("/(auth)/login");
+        return;
       }
+      const filePath = `${user.id}/scan-${Date.now()}.jpg`;
+      const resData = await sendAIFoodScan(capturedImage, filePath);
+      const matchedItems = (resData.matched_menu_items ?? []).map(
+        mapMatchedMenuItem,
+      );
+      const confidence = Math.round(
+        Math.max(0, Math.min(1, resData.recognition.confidence)) * 100,
+      );
+      const scanResult: FoodScanResult = {
+        id: resData.scan.id,
+        timestamp: new Date(resData.scan.created_at).toLocaleString(),
+        scannedImageUrl: capturedImage,
+        isFood: Boolean(resData.recognition.recognized_food),
+        recognizedDishName:
+          resData.recognition.recognized_food || "Food not identified",
+        message: matchedItems.length
+          ? resData.recognition.reason
+          : resData.recognition.recognized_food
+            ? "We couldn't find this exact food on our menu. This item isn't currently available on the Shamsiya menu."
+            : "We couldn't confidently identify food in this image.",
+        confidence,
+        detectedCuisine: "",
+        description: matchedItems[0]?.description || "",
+        detectedIngredients: matchedItems[0]?.ingredients || [],
+        nutritionEstimate: { calories: 0, protein: "", carbs: "", fat: "" },
+        flavorProfile: [],
+        matchedMenuDish: matchedItems[0],
+        matchedMenuItems: matchedItems,
+        matchPercentage: confidence,
+        alternativeMatches: matchedItems.slice(1).map((dish) => ({
+          dish,
+          matchPercentage: confidence,
+        })),
+      };
+      handleScanCompleted(scanResult, () => navigation.push("/scan-result"));
     } catch (err) {
-      // Backend not reachable yet — fall back to a realistic mock result.
-      setTimeout(dispatchFallbackResult, 2100);
+      console.error("Unable to analyze food image:", err);
+      setScanError(
+        err instanceof Error
+          ? err.message
+          : "We couldn't recognize the food right now. Please try another photo.",
+      );
+      setScanState("preview");
     }
   };
 
@@ -281,15 +308,20 @@ export default function FoodScannerScreen() {
                 We need access to your camera to identify food, detect culinary
                 ingredients, and match Shamsiya menu items.
               </Text>
+              {scanError ? (
+                <Text className="text-xs font-bold text-red-200 mb-4 text-center">
+                  {scanError}
+                </Text>
+              ) : null}
 
               <View className="gap-2.5 w-full">
                 <Pressable
-                  onPress={requestPermission}
+                  onPress={handleTakePhoto}
                   className="w-full py-3 px-4 rounded-2xl bg-[#E86A17] flex-row items-center justify-center gap-2"
                 >
                   <Camera width={16} height={16} color="#fff" />
                   <Text className="text-white font-extrabold text-xs">
-                    Allow Camera
+                    Take Photo
                   </Text>
                 </Pressable>
 
@@ -327,6 +359,14 @@ export default function FoodScannerScreen() {
                 <X width={16} height={16} color="#fff" />
               </Pressable>
             </View>
+
+            {scanError ? (
+              <View className="absolute bottom-32 left-5 right-5 rounded-2xl bg-red-950/85 p-3">
+                <Text className="text-center text-xs font-bold text-red-100">
+                  {scanError}
+                </Text>
+              </View>
+            ) : null}
 
             <View className="absolute bottom-0 left-0 right-0 p-5 gap-2.5">
               <Pressable
@@ -444,7 +484,7 @@ export default function FoodScannerScreen() {
           </Pressable>
 
           <Pressable
-            onPress={handleCaptureShutter}
+            onPress={handleTakePhoto}
             className="p-1.5 rounded-full bg-[#E86A17]"
             accessibilityLabel="Capture food image"
           >
@@ -540,7 +580,11 @@ export default function FoodScannerScreen() {
                           numberOfLines={1}
                           className="text-[11px] text-[#8E7668] mt-0.5"
                         >
-                          Matched to: {scan.matchedMenuDish.name}
+                          {scan.matchedMenuDish
+                            ? `Matched to: ${scan.matchedMenuDish.name}`
+                            : scan.isFood
+                              ? "No matching menu item"
+                              : "Not food"}
                         </Text>
                         <View className="flex-row items-center gap-1 mt-0.5">
                           <Clock width={10} height={10} color="#A3A3A3" />

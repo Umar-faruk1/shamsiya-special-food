@@ -188,6 +188,17 @@ export const FoodRecognitionResult: React.FC<{
   onAddToCart: (food: FoodItem) => void;
   onViewDetails: (food: FoodItem) => void;
 }> = ({ result, onAddToCart, onViewDetails }) => {
+  if (!result.matchedMenuDish) {
+    return (
+      <View className="w-full bg-white rounded-3xl p-4 border border-[#613D2D]/15 gap-2">
+        <Text className="text-sm font-extrabold text-[#2D1810]">
+          {result.isFood ? "Food detected" : "Not food"}
+        </Text>
+        <Text className="text-xs text-[#8E7668]">{result.message}</Text>
+      </View>
+    );
+  }
+  const matchedMenuDish = result.matchedMenuDish;
   return (
     <View className="w-full bg-white rounded-3xl p-4 border border-[#613D2D]/15 gap-4">
       {/* Header confidence */}
@@ -307,7 +318,7 @@ export const FoodRecognitionResult: React.FC<{
 
           <View className="flex-row items-center gap-1.5">
             <Pressable
-              onPress={() => onViewDetails(result.matchedMenuDish)}
+              onPress={() => onViewDetails(matchedMenuDish)}
               className="px-2.5 py-1.5 rounded-xl bg-white/10"
             >
               <Text className="text-white text-[11px] font-semibold">
@@ -315,7 +326,7 @@ export const FoodRecognitionResult: React.FC<{
               </Text>
             </Pressable>
             <Pressable
-              onPress={() => onAddToCart(result.matchedMenuDish)}
+              onPress={() => onAddToCart(matchedMenuDish)}
               className="px-3 py-1.5 rounded-xl bg-[#E86A17] flex-row items-center gap-1"
             >
               <Plus width={14} height={14} color="#fff" strokeWidth={2.5} />

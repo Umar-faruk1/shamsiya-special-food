@@ -13,7 +13,8 @@ export const CATEGORIES: Category[] = [
     id: "cat-rice",
     name: "Rice",
     iconName: "Flame",
-    image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=500&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=500&auto=format&fit=crop&q=80",
     itemCount: 8,
     description: "Authentic Jollof, Royal Dum Biryani & Mandi aged grains",
   },
@@ -21,23 +22,28 @@ export const CATEGORIES: Category[] = [
     id: "cat-chicken",
     name: "Chicken",
     iconName: "Utensils",
-    image: "https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?w=500&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?w=500&auto=format&fit=crop&q=80",
     itemCount: 7,
-    description: "Crispy fried quarters, butter chicken & flame roasted chicken",
+    description:
+      "Crispy fried quarters, butter chicken & flame roasted chicken",
   },
   {
     id: "cat-meat",
     name: "Meat",
     iconName: "Soup",
-    image: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=500&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=500&auto=format&fit=crop&q=80",
     itemCount: 6,
-    description: "Charcoal spiced beef suya skewers, lamb chops & peppered meats",
+    description:
+      "Charcoal spiced beef suya skewers, lamb chops & peppered meats",
   },
   {
     id: "cat-snacks",
     name: "Snacks",
     iconName: "Sandwich",
-    image: "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=500&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=500&auto=format&fit=crop&q=80",
     itemCount: 5,
     description: "Kelewele spiced plantain bites, meat pies & spring rolls",
   },
@@ -45,7 +51,8 @@ export const CATEGORIES: Category[] = [
     id: "cat-drinks",
     name: "Drinks",
     iconName: "Coffee",
-    image: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=500&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=500&auto=format&fit=crop&q=80",
     itemCount: 6,
     description: "Hibiscus Sobolo, chilled mango lassi & fresh fruit juices",
   },
@@ -53,7 +60,8 @@ export const CATEGORIES: Category[] = [
     id: "cat-desserts",
     name: "Desserts",
     iconName: "Salad",
-    image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&auto=format&fit=crop&q=80",
     itemCount: 4,
     description: "Warm saffron pudding, golden honey pastries & ice cream",
   },
@@ -61,7 +69,8 @@ export const CATEGORIES: Category[] = [
     id: "cat-popular",
     name: "Popular",
     iconName: "Flame",
-    image: "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=500&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=500&auto=format&fit=crop&q=80",
     itemCount: 9,
     description: "Most ordered delicacies by Shamsiya customers",
   },
@@ -85,7 +94,8 @@ export const FOOD_ITEMS: FoodItem[] = [
     isChefSpecial: true,
     isPopular: true,
     tags: ["Chef Special", "Halal Certified", "Best Seller", "Lamb"],
-    image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&auto=format&fit=crop&q=80",
     description:
       "Our signature masterwork. Slow-cooked marinated spring lamb shank layered with saffron-infused long-grain aged Basmati rice, caramelized shallots, mint, and whole roasted spices in a sealed clay pot. Served with cooling cucumber-pomegranate raita and spicy salan.",
     ingredients: [
@@ -134,7 +144,8 @@ export const FOOD_ITEMS: FoodItem[] = [
     isChefSpecial: true,
     isPopular: true,
     tags: ["Party Jollof", "Sweet Plantain", "Smoky Flavor"],
-    image: "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=800&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=800&auto=format&fit=crop&q=80",
     description:
       "Authentic fire-smoked party Jollof rice steeped in an intensely aromatic reduction of roasted plum tomatoes, bell peppers, scotch bonnets, thyme, and bay leaves. Accompanied by caramelized golden dodo (fried ripe plantains) and tender flame-grilled chicken quarter.",
     ingredients: [
@@ -179,7 +190,8 @@ export const FOOD_ITEMS: FoodItem[] = [
     isVegetarian: false,
     isPopular: true,
     tags: ["High Protein", "Spicy", "Charcoal Grill", "Suya"],
-    image: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800&auto=format&fit=crop&q=80",
     description:
       "Tender strips of prime beef steak threaded onto skewers, seasoned with our secret northern Yaji dry rub (ground kuli-kuli roasted peanuts, ginger, garlic, chili, and alligator pepper), then seared over red-hot charcoal. Served with sliced sweet red onions and juicy lime wedges.",
     ingredients: [
@@ -225,7 +237,8 @@ export const FOOD_ITEMS: FoodItem[] = [
     isVegetarian: false,
     isPopular: true,
     tags: ["Creamy", "Comfort Food", "Tandoori"],
-    image: "https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?w=800&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?w=800&auto=format&fit=crop&q=80",
     description:
       "Tender chunks of boneless chicken thighs marinated in yogurt and tandoori spices, charcoal-grilled to perfection, then simmered gently in a silky tomato, cultured butter, cashew cream, and sun-dried fenugreek (kasuri methi) sauce. Paired with fresh blistered garlic butter naan.",
     ingredients: [
@@ -270,7 +283,8 @@ export const FOOD_ITEMS: FoodItem[] = [
     isVegetarian: false,
     isChefSpecial: true,
     tags: ["Slow Cooked", "Saffron", "Arabian Spice"],
-    image: "https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop&q=80",
     description:
       "Slow underground-style smoked lamb shoulder with golden saffron-infused long grain rice, hawaij spice blend, dried black lime, toasted almonds, and raisins. Served with a zesty, fresh spicy tomato-chili dakkoos dip.",
     ingredients: [
@@ -310,7 +324,8 @@ export const FOOD_ITEMS: FoodItem[] = [
     isVegetarian: false,
     isPopular: true,
     tags: ["Truffle Tahini", "Quick Bite", "Crispy Pickles"],
-    image: "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=800&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=800&auto=format&fit=crop&q=80",
     description:
       "Tender vertical-spit carved spiced ribeye beef, drizzled with aromatic black truffle tahini sauce, pickled pink turnips, fresh mint, parsley, and sumac onions, tightly toasted in thin Saj flatbread until crisp.",
     ingredients: [
@@ -349,7 +364,8 @@ export const FOOD_ITEMS: FoodItem[] = [
     isHalal: true,
     isVegetarian: true,
     tags: ["Vegetarian", "Street Food", "Tangy & Sweet"],
-    image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=800&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=800&auto=format&fit=crop&q=80",
     description:
       "Two golden handmade potato and green pea samosas, lightly crushed and layered with warm spiced chickpea curry (chole), whisked sweet yogurt, tamarind date chutney, vibrant mint coriander chutney, sev crunch, and pomegranate arils.",
     ingredients: [
@@ -389,7 +405,8 @@ export const FOOD_ITEMS: FoodItem[] = [
     isHalal: true,
     isVegetarian: false,
     tags: ["Seafood", "Fiery", "Wok Tossed"],
-    image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800&auto=format&fit=crop&q=80",
     description:
       "Jumbo wild-caught tiger prawns wok-tossed over high heat with hand-pulled egg noodles, crunchy baby bok choy, scallions, shiitake mushrooms, and our signature scotch bonnet chili garlic glaze.",
     ingredients: [
@@ -430,7 +447,8 @@ export const FOOD_ITEMS: FoodItem[] = [
     isChefSpecial: true,
     isPopular: true,
     tags: ["Dessert", "Sweet Cheese", "Warm & Crispy"],
-    image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&auto=format&fit=crop&q=80",
     description:
       "Crisp golden butter-toasted shredded kataifi pastry baked fresh with sweet melted akkawi cheese, soaked in warm orange blossom and rose-cardamom sugar syrup, generously crowned with crushed emerald pistachios.",
     ingredients: [
@@ -469,7 +487,8 @@ export const FOOD_ITEMS: FoodItem[] = [
     isVegetarian: true,
     isPopular: true,
     tags: ["Cooling Drink", "Real Fruit", "Refreshing"],
-    image: "https://images.unsplash.com/photo-1546173159-315724a31696?w=800&auto=format&fit=crop&q=80",
+    image:
+      "https://images.unsplash.com/photo-1546173159-315724a31696?w=800&auto=format&fit=crop&q=80",
     description:
       "Velvety smooth chilled drink made with pure sun-ripened Alphonso mango pulp, thick probiotic yogurt, cold whole milk, organic honey, and a hint of ground green cardamom dust.",
     ingredients: [
@@ -488,9 +507,7 @@ export const FOOD_ITEMS: FoodItem[] = [
       fiber: "2g",
     },
     spiceCustomizable: false,
-    addons: [
-      { id: "add-23", name: "Chia Seeds Boost", price: 0.75 },
-    ],
+    addons: [{ id: "add-23", name: "Chia Seeds Boost", price: 0.75 }],
   },
 ];
 
@@ -499,7 +516,8 @@ export const MOCK_USER: UserProfile = {
   name: "Umar Faruk",
   email: "umarfarukmahama@gmail.com",
   phone: "+233 24 123 4567",
-  avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80",
+  avatar:
+    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80",
   memberTier: "Gold",
   loyaltyPoints: 1480,
   savedAddresses: [
@@ -603,7 +621,8 @@ export const MOCK_ACTIVE_ORDER: Order = {
   rider: {
     id: "rdr-101",
     name: "Ibrahim K.",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80",
+    avatar:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80",
     phone: "+1 (555) 892-4190",
     vehicle: "Yamaha NMAX Moto (Thermal Food Carrier)",
     plateNumber: "7K-8921",
@@ -740,7 +759,8 @@ export const MOCK_NOTIFICATIONS: AppNotification[] = [
   {
     id: "notif-1",
     title: "🛵 Rider is Approaching!",
-    message: "Ibrahim K. is 3 minutes away with your hot Royal Dum Biryani & Suya.",
+    message:
+      "Ibrahim K. is 3 minutes away with your hot Royal Dum Biryani & Suya.",
     time: "2m ago",
     type: "order",
     read: false,
@@ -749,7 +769,8 @@ export const MOCK_NOTIFICATIONS: AppNotification[] = [
   {
     id: "notif-2",
     title: "✨ Shamsiya AI Taste Alert",
-    message: "Based on your love for smoky spices, we think you'll adore our new Saffron Mandi Rice!",
+    message:
+      "Based on your love for smoky spices, we think you'll adore our new Saffron Mandi Rice!",
     time: "3h ago",
     type: "ai",
     read: false,
@@ -757,7 +778,8 @@ export const MOCK_NOTIFICATIONS: AppNotification[] = [
   {
     id: "notif-3",
     title: "🎉 20% Off Weekend Specials",
-    message: "Use code SHAMSIYA20 at checkout for 20% off all grilled specials.",
+    message:
+      "Use code SHAMSIYA20 at checkout for 20% off all grilled specials.",
     time: "1d ago",
     type: "promo",
     read: true,
@@ -765,7 +787,8 @@ export const MOCK_NOTIFICATIONS: AppNotification[] = [
   {
     id: "notif-4",
     title: "⭐ You earned +120 Loyalty Points!",
-    message: "Your recent Gold Tier order earned 120 points. You are only 220 points from Platinum!",
+    message:
+      "Your recent Gold Tier order earned 120 points. You are only 220 points from Platinum!",
     time: "2d ago",
     type: "system",
     read: true,
@@ -776,13 +799,28 @@ export const MOCK_RECENT_SCANS: FoodScanResult[] = [
   {
     id: "scan-rec-1",
     timestamp: "Today, 11:30 AM",
-    scannedImageUrl: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=500&auto=format&fit=crop&q=80",
+    scannedImageUrl:
+      "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=500&auto=format&fit=crop&q=80",
+    isFood: true,
     recognizedDishName: "Royal Dum Biryani",
+    message: "This looks like Royal Dum Biryani from the menu.",
     confidence: 97,
     detectedCuisine: "South Asian / Mughal Heritage",
-    description: "Layered aged basmati rice with slow-braised lamb shank, saffron strings, fried crispy shallots, and whole spices.",
-    detectedIngredients: ["Aged Basmati Rice", "Tender Marinated Lamb", "Saffron Threads", "Crisp Shallots", "Cardamom"],
-    nutritionEstimate: { calories: 680, protein: "38g", carbs: "64g", fat: "22g" },
+    description:
+      "Layered aged basmati rice with slow-braised lamb shank, saffron strings, fried crispy shallots, and whole spices.",
+    detectedIngredients: [
+      "Aged Basmati Rice",
+      "Tender Marinated Lamb",
+      "Saffron Threads",
+      "Crisp Shallots",
+      "Cardamom",
+    ],
+    nutritionEstimate: {
+      calories: 680,
+      protein: "38g",
+      carbs: "64g",
+      fat: "22g",
+    },
     flavorProfile: ["Aromatic", "Rich", "Saffron Cardamom"],
     matchedMenuDish: FOOD_ITEMS[0],
     matchPercentage: 98,
@@ -794,30 +832,57 @@ export const MOCK_RECENT_SCANS: FoodScanResult[] = [
   {
     id: "scan-rec-2",
     timestamp: "Yesterday, 3:45 PM",
-    scannedImageUrl: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=500&auto=format&fit=crop&q=80",
+    scannedImageUrl:
+      "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=500&auto=format&fit=crop&q=80",
+    isFood: true,
     recognizedDishName: "Charcoal Beef Suya",
+    message: "This looks like Charcoal Beef Suya from the menu.",
     confidence: 95,
     detectedCuisine: "West African Street BBQ",
-    description: "Spiced beef skewers flame-grilled over open charcoal embers with authentic Yaji roasted peanut pepper rub.",
-    detectedIngredients: ["Thin Prime Beef", "Roasted Peanut Rub", "Ginger & Garlic", "Chili Flakes", "Red Onion Slices"],
-    nutritionEstimate: { calories: 520, protein: "46g", carbs: "12g", fat: "24g" },
+    description:
+      "Spiced beef skewers flame-grilled over open charcoal embers with authentic Yaji roasted peanut pepper rub.",
+    detectedIngredients: [
+      "Thin Prime Beef",
+      "Roasted Peanut Rub",
+      "Ginger & Garlic",
+      "Chili Flakes",
+      "Red Onion Slices",
+    ],
+    nutritionEstimate: {
+      calories: 520,
+      protein: "46g",
+      carbs: "12g",
+      fat: "24g",
+    },
     flavorProfile: ["Smoky", "Fiery", "Savory Nutty"],
     matchedMenuDish: FOOD_ITEMS[2],
     matchPercentage: 96,
-    alternativeMatches: [
-      { dish: FOOD_ITEMS[5], matchPercentage: 81 },
-    ],
+    alternativeMatches: [{ dish: FOOD_ITEMS[5], matchPercentage: 81 }],
   },
   {
     id: "scan-rec-3",
     timestamp: "Aug 16, 7:10 PM",
-    scannedImageUrl: "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=500&auto=format&fit=crop&q=80",
+    scannedImageUrl:
+      "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=500&auto=format&fit=crop&q=80",
+    isFood: true,
     recognizedDishName: "Party Jollof Rice & Dodo",
+    message: "This looks like Party Jollof Rice & Dodo from the menu.",
     confidence: 99,
     detectedCuisine: "West African Heritage",
-    description: "Smoky woodfire parboiled rice in rich tomato-pepper reduction with caramelized ripe plantains.",
-    detectedIngredients: ["Parboiled Rice", "Plum Tomato Puree", "Scotch Bonnet Peppers", "Ripe Plantains"],
-    nutritionEstimate: { calories: 610, protein: "32g", carbs: "76g", fat: "17g" },
+    description:
+      "Smoky woodfire parboiled rice in rich tomato-pepper reduction with caramelized ripe plantains.",
+    detectedIngredients: [
+      "Parboiled Rice",
+      "Plum Tomato Puree",
+      "Scotch Bonnet Peppers",
+      "Ripe Plantains",
+    ],
+    nutritionEstimate: {
+      calories: 610,
+      protein: "32g",
+      carbs: "76g",
+      fat: "17g",
+    },
     flavorProfile: ["Woodsmoke", "Sweet-Savory", "Peppery"],
     matchedMenuDish: FOOD_ITEMS[1],
     matchPercentage: 99,
