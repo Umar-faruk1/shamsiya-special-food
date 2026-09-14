@@ -28,6 +28,7 @@ import {
   markAllCustomerNotificationsRead,
   markCustomerNotificationRead,
 } from "../api/notifications";
+import { getFavorites, toggleFavorite } from "../api/favorites";
 
 /**
  * This context is the direct port of the state + handlers that used to
@@ -62,6 +63,9 @@ interface AppContextValue {
   cartItems: CartItem[];
   orders: Order[];
   favorites: string[];
+  favoritesLoading: boolean;
+  favoritesError: string | null;
+  refreshFavorites: () => Promise<void>;
   notifications: CustomerNotification[];
   recentScans: FoodScanResult[];
   latestScanResult: FoodScanResult | null;
@@ -97,7 +101,7 @@ interface AppContextValue {
   cartTotalItems: number;
 
   // Favorites
-  handleToggleFavorite: (food: FoodItem) => void;
+  handleToggleFavorite: (food: FoodItem) => Promise<void>;
 
   // Scanner
   handleScanCompleted: (result: FoodScanResult, onDone?: () => void) => void;
@@ -130,11 +134,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [cartHydrated, setCartHydrated] = useState(false);
   const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
-  const [favorites, setFavorites] = useState<string[]>([
-    "food-1",
-    "food-3",
-    "food-9",
-  ]);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
+  const [favoritesError, setFavoritesError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<CustomerNotification[]>(
     [],
   );
@@ -300,6 +302,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       listener.subscription.unsubscribe();
     };
   }, [loadCustomerProfile]);
+
+  const refreshFavorites = useCallback(async () => {
+    if (!authUser) {
+      setFavorites([]);
+      setFavoritesError(null);
+      setFavoritesLoading(false);
+      return;
+    }
+
+    setFavoritesLoading(true);
+    setFavoritesError(null);
+    try {
+      setFavorites(await getFavorites());
+    } catch (error) {
+      console.error("Unable to load favorites:", error);
+      setFavoritesError("We could not load your favorites right now.");
+    } finally {
+      setFavoritesLoading(false);
+    }
+  }, [authUser]);
+
+  useEffect(() => {
+    void refreshFavorites();
+  }, [refreshFavorites]);
 
   const refreshNotifications = useCallback(async () => {
     if (!authUser) {
@@ -542,17 +568,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [showToast]);
 
   const handleToggleFavorite = useCallback(
-    (food: FoodItem) => {
-      setFavorites((prev) => {
-        if (prev.includes(food.id)) {
-          showToast(`Removed ${food.name} from favorites`);
-          return prev.filter((id) => id !== food.id);
-        }
-        showToast(`Saved ${food.name} to favorites`);
-        return [...prev, food.id];
-      });
+    async (food: FoodItem) => {
+      if (!authUser) {
+        showToast("Please sign in to manage favorites.");
+        return;
+      }
+
+      const currentlyFavorited = favorites.includes(food.id);
+      try {
+        const nextFavorited = await toggleFavorite(food.id, currentlyFavorited);
+        setFavorites((current) =>
+          nextFavorited
+            ? current.includes(food.id)
+              ? current
+              : [...current, food.id]
+            : current.filter((id) => id !== food.id),
+        );
+        showToast(
+          nextFavorited
+            ? `Saved ${food.name} to favorites`
+            : `Removed ${food.name} from favorites`,
+        );
+      } catch (error) {
+        console.error("Unable to update favorite:", error);
+        showToast("We could not update favorites. Please try again.");
+      }
     },
-    [showToast],
+    [authUser, favorites, showToast],
   );
 
   const handleScanCompleted = useCallback(
@@ -754,6 +796,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     cartItems,
     orders,
     favorites,
+    favoritesLoading,
+    favoritesError,
+    refreshFavorites,
     notifications,
     recentScans,
     latestScanResult,

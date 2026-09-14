@@ -10,7 +10,7 @@ interface FoodCardProps {
   onPress: (food: FoodItem) => void;
   onAddToCart?: (food: FoodItem) => void;
   isFavorite?: boolean;
-  onToggleFavorite?: (food: FoodItem) => void;
+  onToggleFavorite?: (food: FoodItem) => void | Promise<void>;
 }
 
 // Direct port of FoodCards.tsx (FoodCard, HorizontalFoodCard, FoodGrid).
@@ -67,9 +67,16 @@ export const FoodCard: React.FC<FoodCardProps> = ({
         {/* Favorite Heart Button top right */}
         {onToggleFavorite ? (
           <Pressable
-            onPress={() => onToggleFavorite(food)}
+            onPress={(event) => {
+              event.stopPropagation();
+              void onToggleFavorite(food);
+            }}
             className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 items-center justify-center"
-            accessibilityLabel="Add to favorites"
+            accessibilityLabel={
+              isFavorite
+                ? `Remove ${food.name} from favorites`
+                : `Add ${food.name} to favorites`
+            }
           >
             <Heart
               width={14}
@@ -195,7 +202,18 @@ export const HorizontalFoodCard: React.FC<FoodCardProps> = ({
             {food.name}
           </Text>
           {onToggleFavorite ? (
-            <Pressable onPress={() => onToggleFavorite(food)} className="p-0.5">
+            <Pressable
+              onPress={(event) => {
+                event.stopPropagation();
+                void onToggleFavorite(food);
+              }}
+              className="p-0.5"
+              accessibilityLabel={
+                isFavorite
+                  ? `Remove ${food.name} from favorites`
+                  : `Add ${food.name} to favorites`
+              }
+            >
               <Heart
                 width={14}
                 height={14}

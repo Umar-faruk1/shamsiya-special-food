@@ -10,7 +10,14 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { X, Clock, Utensils, Check, AlertCircle } from "lucide-react-native";
+import {
+  X,
+  Clock,
+  Utensils,
+  Check,
+  AlertCircle,
+  Heart,
+} from "lucide-react-native";
 import { Asset } from "expo-asset";
 import { FoodItem } from "../types";
 import { RatingStars, QuantitySelector } from "../components/BadgesAndRatings";
@@ -34,7 +41,8 @@ type FoodDetail = Omit<FoodItem, "calories"> & { calories: number | null };
 export default function FoodDetailsModal() {
   const router = useRouter();
   const { foodId } = useLocalSearchParams<{ foodId?: string }>();
-  const { handleAddToCartWithOptions } = useApp();
+  const { favorites, handleAddToCartWithOptions, handleToggleFavorite } =
+    useApp();
 
   const [menuItem, setMenuItem] = useState<FoodDetail | null>(null);
   const [options, setOptions] = useState<MenuOption[]>([]);
@@ -208,6 +216,24 @@ export default function FoodDetailsModal() {
             accessibilityLabel="Close details"
           >
             <X width={16} height={16} color="#2D1810" strokeWidth={2.5} />
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              if (menuItem) void handleToggleFavorite(menuItem);
+            }}
+            className="w-9 h-9 rounded-full bg-white/90 items-center justify-center"
+            accessibilityLabel={
+              favorites.includes(menuItem.id)
+                ? `Remove ${menuItem.name} from favorites`
+                : `Add ${menuItem.name} to favorites`
+            }
+          >
+            <Heart
+              width={17}
+              height={17}
+              color={favorites.includes(menuItem.id) ? "#EF4444" : "#2D1810"}
+              fill={favorites.includes(menuItem.id) ? "#EF4444" : "none"}
+            />
           </Pressable>
         </View>
 

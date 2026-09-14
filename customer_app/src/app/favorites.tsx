@@ -1,5 +1,12 @@
 import React from "react";
-import { View, Text, Image, Pressable, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  Image,
+  Pressable,
+  ScrollView,
+  ActivityIndicator,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import {
@@ -19,8 +26,15 @@ import { useApp } from "../context/AppContext";
 // Direct port of FavoritesScreen.tsx
 export default function FavoritesScreen() {
   const navigation = useRouter();
-  const { foodItems, favorites, handleAddToCartQuick, handleToggleFavorite } =
-    useApp();
+  const {
+    foodItems,
+    favorites,
+    favoritesError,
+    favoritesLoading,
+    refreshFavorites,
+    handleAddToCartQuick,
+    handleToggleFavorite,
+  } = useApp();
 
   const favoriteFoods = foodItems.filter((f) => favorites.includes(f.id));
 
@@ -136,7 +150,28 @@ export default function FavoritesScreen() {
         </View>
 
         {/* 3. FAVORITES GRID */}
-        {favoriteFoods.length > 0 ? (
+        {favoritesLoading ? (
+          <View className="items-center justify-center py-16">
+            <ActivityIndicator size="large" color="#E86A17" />
+            <Text className="mt-3 text-xs font-semibold text-[#8E7668]">
+              Loading your favorites...
+            </Text>
+          </View>
+        ) : favoritesError ? (
+          <View className="items-center rounded-3xl border border-rose-200 bg-rose-50 p-5">
+            <Text className="text-sm font-extrabold text-rose-900 text-center">
+              {favoritesError}
+            </Text>
+            <Pressable
+              onPress={() => void refreshFavorites()}
+              className="mt-4 rounded-xl bg-[#E86A17] px-4 py-2.5"
+            >
+              <Text className="text-xs font-extrabold text-white">
+                Try again
+              </Text>
+            </Pressable>
+          </View>
+        ) : favoriteFoods.length > 0 ? (
           <View className="gap-3">
             {Array.from({ length: Math.ceil(favoriteFoods.length / 2) }).map(
               (_, rowIdx) => (
@@ -156,7 +191,10 @@ export default function FavoritesScreen() {
                             resizeMode="cover"
                           />
                           <Pressable
-                            onPress={() => handleToggleFavorite(food)}
+                            onPress={(event) => {
+                              event.stopPropagation();
+                              void handleToggleFavorite(food);
+                            }}
                             className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/95 items-center justify-center"
                             accessibilityLabel="Remove from favorites"
                           >

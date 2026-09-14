@@ -485,9 +485,16 @@ export default function HomeScreen() {
                         resizeMode="cover"
                       />
                       <Pressable
-                        onPress={() => handleToggleFavorite(food)}
+                        onPress={(event) => {
+                          event.stopPropagation();
+                          void handleToggleFavorite(food);
+                        }}
                         className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 items-center justify-center"
-                        accessibilityLabel="Toggle favorite"
+                        accessibilityLabel={
+                          isFav
+                            ? `Remove ${food.name} from favorites`
+                            : `Add ${food.name} to favorites`
+                        }
                       >
                         <Heart
                           width={14}
@@ -605,9 +612,16 @@ export default function HomeScreen() {
                               </Text>
                             </View>
                             <Pressable
-                              onPress={() => handleToggleFavorite(food)}
+                              onPress={(event) => {
+                                event.stopPropagation();
+                                void handleToggleFavorite(food);
+                              }}
                               className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 items-center justify-center"
-                              accessibilityLabel="Add to favorites"
+                              accessibilityLabel={
+                                isFav
+                                  ? `Remove ${food.name} from favorites`
+                                  : `Add ${food.name} to favorites`
+                              }
                             >
                               <Heart
                                 width={14}
