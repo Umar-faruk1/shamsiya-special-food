@@ -9,6 +9,7 @@ import {
   Bell,
   Sparkles,
   ShieldCheck,
+  Tag,
   ChevronRight,
   Settings,
   HelpCircle,
@@ -70,6 +71,13 @@ export default function ProfileScreen() {
           title: "My Favorites ❤️",
           subtitle: `${favorites.length} saved dishes`,
           action: () => navigation.push("/favorites"),
+        },
+        {
+          id: "promotions",
+          icon: <Tag width={16} height={16} color="#E86A17" />,
+          title: "Promotions & Coupons",
+          subtitle: "Save on your next order",
+          action: () => navigation.push("/promotions"),
         },
         {
           id: "reviews",

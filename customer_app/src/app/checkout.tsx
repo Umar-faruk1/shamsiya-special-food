@@ -21,6 +21,8 @@ import { PrimaryButton, SecondaryButton } from "../components/Buttons";
 import { EmptyState } from "../components/CommonModalsAndCards";
 import { useApp } from "../context/AppContext";
 import { supabase } from "../api/supabase";
+import { validatePromotion } from "../api/promotions";
+import { PromotionValidation } from "../types";
 
 type CustomerAddress = {
   id: string;
@@ -69,6 +71,11 @@ export default function CheckoutScreen() {
   const [addressForm, setAddressForm] = useState(emptyAddressForm);
   const [isSavingAddress, setIsSavingAddress] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [appliedPromotion, setAppliedPromotion] =
+    useState<PromotionValidation | null>(null);
+  const [isValidatingPromotion, setIsValidatingPromotion] = useState(false);
+  const [promotionError, setPromotionError] = useState<string | null>(null);
 
   const loadAddresses = useCallback(async () => {
     if (!authUser) {
@@ -109,11 +116,56 @@ export default function CheckoutScreen() {
     [cartItems],
   );
   const deliveryFee = 0;
-  const discount = 0;
-  const total = Number((subtotal + deliveryFee - discount).toFixed(2));
+  const discount = appliedPromotion?.discount_amount ?? 0;
+  const total = Number(
+    Math.max(0, subtotal + deliveryFee - discount).toFixed(2),
+  );
   const selectedAddress = addresses.find(
     (address) => address.id === selectedAddressId,
   );
+
+  const getPromotionError = (error: unknown) => {
+    const message = error instanceof Error ? error.message.toLowerCase() : "";
+    if (message.includes("minimum") || message.includes("order")) {
+      const minimum = appliedPromotion?.minimum_order;
+      return minimum
+        ? `This promotion requires a minimum order of ${formatCurrency(minimum)}.`
+        : "This promotion does not apply to this order.";
+    }
+    if (
+      message.includes("invalid") ||
+      message.includes("expired") ||
+      message.includes("not found")
+    ) {
+      return "Invalid or expired promo code.";
+    }
+    return "Unable to validate this promo code. Please try again.";
+  };
+
+  const handleApplyPromotion = async () => {
+    if (isValidatingPromotion || !authUser) return;
+    setIsValidatingPromotion(true);
+    setPromotionError(null);
+    try {
+      const result = await validatePromotion(promoCodeInput, subtotal);
+      setAppliedPromotion(result);
+      setPromoCodeInput(
+        result.promo_code || promoCodeInput.trim().toUpperCase(),
+      );
+    } catch (error) {
+      console.error("Unable to validate promotion:", error);
+      setAppliedPromotion(null);
+      setPromotionError(getPromotionError(error));
+    } finally {
+      setIsValidatingPromotion(false);
+    }
+  };
+
+  const handleRemovePromotion = () => {
+    setAppliedPromotion(null);
+    setPromoCodeInput("");
+    setPromotionError(null);
+  };
 
   const updateAddressForm = (
     field: keyof typeof emptyAddressForm,
@@ -244,6 +296,28 @@ export default function CheckoutScreen() {
     }
     setIsSubmitting(true);
     try {
+      let finalDiscount = 0;
+      if (appliedPromotion) {
+        try {
+          const freshPromotion = await validatePromotion(
+            appliedPromotion.promo_code || promoCodeInput,
+            subtotal,
+          );
+          setAppliedPromotion(freshPromotion);
+          finalDiscount = freshPromotion.discount_amount;
+        } catch (promotionValidationError) {
+          console.error(
+            "Unable to revalidate promotion before order:",
+            promotionValidationError,
+          );
+          setPromotionError(getPromotionError(promotionValidationError));
+          Alert.alert(
+            "Promotion unavailable",
+            getPromotionError(promotionValidationError),
+          );
+          return;
+        }
+      }
       const { data, error } = await supabase.rpc("create_customer_order", {
         p_address_id: selectedAddress.id,
         p_delivery_address: selectedAddress.address,
@@ -253,7 +327,7 @@ export default function CheckoutScreen() {
         p_payment_method: paymentMethod,
         p_subtotal: subtotal,
         p_delivery_fee: deliveryFee,
-        p_discount: discount,
+        p_discount: finalDiscount,
         p_items: items,
       });
       if (error) throw error;
@@ -319,6 +393,14 @@ export default function CheckoutScreen() {
               <Text className="text-xs text-[#E86A17] font-bold">
                 Add New Address
               </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push("/addresses")}
+              className="flex-row items-center gap-1"
+              accessibilityLabel="Manage saved addresses"
+            >
+              <MapPin width={14} height={14} color="#2D1810" />
+              <Text className="text-xs font-bold text-[#2D1810]">Manage</Text>
             </Pressable>
           </View>
           {showAddressForm ? (
@@ -495,6 +577,54 @@ export default function CheckoutScreen() {
               ) : null}
             </Pressable>
           ))}
+        </View>
+        <View className="gap-3 rounded-3xl border border-[#613D2D]/12 bg-white p-4">
+          <Text className="text-xs font-extrabold uppercase tracking-wider text-[#2D1810]">
+            Promo Code
+          </Text>
+          {appliedPromotion ? (
+            <View className="flex-row items-center justify-between rounded-2xl bg-emerald-50 p-3">
+              <View className="flex-1">
+                <Text className="text-xs font-black text-emerald-900">
+                  {appliedPromotion.promo_code || promoCodeInput}
+                </Text>
+                <Text className="mt-1 text-[11px] text-emerald-800">
+                  {appliedPromotion.title} • -{formatCurrency(discount)}
+                </Text>
+              </View>
+              <Pressable onPress={handleRemovePromotion}>
+                <Text className="text-xs font-bold text-red-700">Remove</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View className="flex-row items-center gap-2">
+              <TextInput
+                value={promoCodeInput}
+                onChangeText={(value) => {
+                  setPromoCodeInput(value.toUpperCase());
+                  setPromotionError(null);
+                }}
+                autoCapitalize="characters"
+                placeholder="Enter promo code"
+                placeholderTextColor="#A9998F"
+                className="flex-1 rounded-xl border border-[#613D2D]/15 bg-[#FDFBF7] px-3 py-2.5 text-xs font-bold text-[#2D1810]"
+              />
+              <Pressable
+                onPress={() => void handleApplyPromotion()}
+                disabled={isValidatingPromotion || !promoCodeInput.trim()}
+                className="rounded-xl bg-[#E86A17] px-3 py-2.5"
+              >
+                <Text className="text-xs font-extrabold text-white">
+                  {isValidatingPromotion ? "Applying..." : "Apply"}
+                </Text>
+              </Pressable>
+            </View>
+          )}
+          {promotionError ? (
+            <Text className="text-xs font-semibold text-red-700">
+              {promotionError}
+            </Text>
+          ) : null}
         </View>
         <View className="gap-2 bg-white p-4 rounded-3xl border border-[#613D2D]/12">
           <Text className="text-xs font-extrabold text-[#2D1810] uppercase tracking-wider">

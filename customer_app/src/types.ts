@@ -198,6 +198,48 @@ export interface UserAddress {
   isDefault: boolean;
 }
 
+export type Address = {
+  id: string;
+  user_id: string;
+  label: string;
+  address: string;
+  city: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  delivery_instructions: string | null;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Promotion = {
+  id: string;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  discount_type: "percentage" | "fixed";
+  discount_value: number;
+  minimum_order: number | null;
+  max_discount: number | null;
+  promo_code: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PromotionValidation = {
+  promotion_id: string;
+  title: string;
+  promo_code: string | null;
+  discount_type: "percentage" | "fixed";
+  discount_value: number;
+  minimum_order: number;
+  max_discount: number | null;
+  discount_amount: number;
+};
+
 export interface PaymentMethod {
   id: string;
   type: "card" | "apple_pay" | "google_pay" | "cash" | "mobile_money";

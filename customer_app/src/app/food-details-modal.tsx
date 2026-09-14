@@ -219,7 +219,12 @@ export default function FoodDetailsModal() {
           </Pressable>
           <Pressable
             onPress={() => {
-              if (menuItem) void handleToggleFavorite(menuItem);
+              if (menuItem) {
+                void handleToggleFavorite({
+                  ...menuItem,
+                  calories: menuItem.calories ?? 0,
+                });
+              }
             }}
             className="w-9 h-9 rounded-full bg-white/90 items-center justify-center"
             accessibilityLabel={
