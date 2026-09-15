@@ -16,6 +16,7 @@ import {
   Flame,
   ArrowRight,
   Clock,
+  ShoppingBag,
 } from "lucide-react-native";
 import { FoodItem } from "../../types";
 import { RatingStars } from "../../components/BadgesAndRatings";
@@ -92,13 +93,7 @@ export default function HomeScreen() {
 
   return (
     <View className="flex-1 bg-[#F7F4EE]">
-      <AppHeader
-        currentScreen="Home"
-        favoritesCount={favorites.length}
-        currentLocation={
-          user.savedAddresses[0]?.street || "Downtown Gourmet Way"
-        }
-      />
+      <AppHeader currentScreen="Home" favoritesCount={favorites.length} />
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 32, gap: 20 }}
@@ -125,7 +120,7 @@ export default function HomeScreen() {
         {/* 1. GREETING */}
         <View className="px-4 pt-1">
           <Text className="text-xl font-extrabold text-[#2D1810]">
-            Good afternoon, {user.name?.split(" ")[0] || "Umar"} 👋
+            Good afternoon, {user.name || "Customer"} 👋
           </Text>
           <Text className="text-xs font-semibold text-[#8E7668] mt-0.5">
             What are you craving today?
@@ -701,32 +696,30 @@ export default function HomeScreen() {
 
             <View className="gap-2.5">
               {recentOrders.slice(0, 2).map((order) => {
-                const mainItem = order.items[0]?.food;
-                if (!mainItem) return null;
-
                 return (
                   <Pressable
                     key={order.id}
-                    onPress={() => onSelectFood(mainItem)}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/order-details",
+                        params: { orderId: order.id },
+                      })
+                    }
                     className="p-3 bg-white rounded-3xl border border-[#613D2D]/12 flex-row items-center justify-between gap-3"
                   >
                     <View className="flex-row items-center gap-3 flex-1">
-                      <Image
-                        source={{ uri: mainItem.image }}
-                        style={{ width: 52, height: 52, borderRadius: 16 }}
-                      />
+                      <View className="w-[52px] h-[52px] rounded-2xl bg-[#F4EFE6] items-center justify-center">
+                        <ShoppingBag width={20} height={20} color="#E86A17" />
+                      </View>
                       <View className="flex-1">
                         <Text
                           numberOfLines={1}
                           className="text-xs font-bold text-[#2D1810]"
                         >
-                          {mainItem.name}
+                          Order #{order.order_number}
                         </Text>
                         <Text className="text-[10px] text-[#8E7668] mt-0.5">
-                          {order.items.length > 1
-                            ? `+${order.items.length - 1} more items • `
-                            : ""}
-                          ₵{order.total.toFixed(2)}
+                          {order.status} • ₵{Number(order.total).toFixed(2)}
                         </Text>
                         <View className="mt-1 px-1.5 py-0.5 rounded bg-emerald-50 self-start">
                           <Text className="text-[9px] font-bold text-emerald-600">
@@ -736,15 +729,7 @@ export default function HomeScreen() {
                       </View>
                     </View>
 
-                    <Pressable
-                      onPress={() => handleAddToCartQuick(mainItem)}
-                      className="px-3.5 py-2 rounded-xl bg-[#2D1810] flex-row items-center gap-1"
-                    >
-                      <RotateCcw width={12} height={12} color="#E86A17" />
-                      <Text className="text-white text-xs font-extrabold">
-                        Reorder
-                      </Text>
-                    </Pressable>
+                    <ChevronRight width={16} height={16} color="#8E7668" />
                   </Pressable>
                 );
               })}

@@ -8,7 +8,6 @@ import {
   Heart,
   Bell,
   Sparkles,
-  ShieldCheck,
   Tag,
   ChevronRight,
   Settings,
@@ -35,7 +34,7 @@ const availableOptions = [
 // Direct port of ProfileScreen.tsx
 export default function ProfileScreen() {
   const navigation = useRouter();
-  const { user, setUser, favorites, signOut, showToast } = useApp();
+  const { user, setUser, favorites, orders, signOut, showToast } = useApp();
 
   const [isDietaryModalOpen, setIsDietaryModalOpen] = useState(false);
   const [selectedPreferences, setSelectedPreferences] = useState<string[]>(
@@ -95,7 +94,7 @@ export default function ProfileScreen() {
           id: "addresses",
           icon: <MapPin width={16} height={16} color="#2D1810" />,
           title: "Saved Delivery Addresses",
-          subtitle: `${user.savedAddresses?.length || 0} locations`,
+          subtitle: "Manage your saved delivery locations",
           action: () => navigation.push("/addresses"),
         },
         {
@@ -190,7 +189,8 @@ export default function ProfileScreen() {
             </View>
             <View className="flex-1 bg-black/30 p-2 rounded-2xl items-center">
               <Text className="text-xs font-black text-emerald-400">
-                12 Orders
+                {orders.filter((order) => order.status === "delivered").length}{" "}
+                Orders
               </Text>
               <Text className="text-[9px] text-neutral-300">
                 Total Completed
@@ -199,25 +199,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* 2. BACKEND BADGE */}
-        <View className="p-3 bg-[#F4EFE6] rounded-2xl border border-[#613D2D]/15 flex-row items-center justify-between">
-          <View className="flex-row items-center gap-2 flex-1">
-            <ShieldCheck width={16} height={16} color="#059669" />
-            <View className="flex-1">
-              <Text className="text-xs font-bold text-[#2D1810]">
-                Appwrite Backend Architecture
-              </Text>
-              <Text className="text-[10px] text-[#8E7668]">
-                Ready for production auth, database & realtime sync
-              </Text>
-            </View>
-          </View>
-          <View className="px-2 py-0.5 rounded-md bg-[#2D1810]">
-            <Text className="text-white text-[9px] font-bold">Ready</Text>
-          </View>
-        </View>
-
-        {/* 3. MENU SECTIONS */}
+        {/* 2. MENU SECTIONS */}
         {menuSections.map((section, idx) => (
           <View key={idx} className="gap-2">
             <Text className="text-xs font-extrabold text-[#8E7668] uppercase tracking-wider px-1">

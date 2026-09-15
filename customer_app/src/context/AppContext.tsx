@@ -7,12 +7,10 @@ import React, {
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
-import { MOCK_ORDERS, MOCK_USER, MOCK_RIDER } from "../data/mockData";
 import { fetchMenuData } from "../api/menu";
 import {
   FoodItem,
   CartItem,
-  Order,
   FoodScanResult,
   UserProfile,
   UserAddress,
@@ -21,6 +19,7 @@ import {
   Category,
   CartSelectedOption,
 } from "../types";
+import { CustomerOrder, fetchCustomerOrders } from "../api/orders";
 import { supabase } from "../api/supabase";
 import {
   CustomerNotification,
@@ -61,7 +60,7 @@ interface AppContextValue {
   user: UserProfile;
   setUser: React.Dispatch<React.SetStateAction<UserProfile>>;
   cartItems: CartItem[];
-  orders: Order[];
+  orders: CustomerOrder[];
   favorites: string[];
   favoritesLoading: boolean;
   favoritesError: string | null;
@@ -69,8 +68,6 @@ interface AppContextValue {
   notifications: CustomerNotification[];
   recentScans: FoodScanResult[];
   latestScanResult: FoodScanResult | null;
-  activeTrackingOrder: Order | null;
-  setActiveTrackingOrder: React.Dispatch<React.SetStateAction<Order | null>>;
   isAuthenticated: boolean;
   setIsAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
   authUser: SupabaseUser | null;
@@ -106,9 +103,6 @@ interface AppContextValue {
   // Scanner
   handleScanCompleted: (result: FoodScanResult, onDone?: () => void) => void;
 
-  // Orders
-  handlePlaceOrder: (orderData: Partial<Order>, onDone?: () => void) => void;
-
   // Notifications
   unreadNotificationsCount: number;
   refreshNotifications: () => Promise<void>;
@@ -130,10 +124,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [menuLoading, setMenuLoading] = useState(true);
   const [menuError, setMenuError] = useState<string | null>(null);
-  const [user, setUser] = useState<UserProfile>(MOCK_USER);
+  const [user, setUser] = useState<UserProfile>({
+    id: "",
+    name: "Customer",
+    email: "",
+    phone: "",
+    avatar: "",
+    memberTier: "Bronze",
+    loyaltyPoints: 0,
+    savedAddresses: [],
+    savedPaymentMethods: [],
+    dietaryPreferences: [],
+  });
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [cartHydrated, setCartHydrated] = useState(false);
-  const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
+  const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [favoritesError, setFavoritesError] = useState<string | null>(null);
@@ -143,9 +148,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [recentScans, setRecentScans] = useState<FoodScanResult[]>([]);
   const [latestScanResult, setLatestScanResult] =
     useState<FoodScanResult | null>(null);
-  const [activeTrackingOrder, setActiveTrackingOrder] = useState<Order | null>(
-    MOCK_ORDERS[0],
-  );
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [authUser, setAuthUser] = useState<SupabaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -286,13 +288,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("CUSTOMER ACCESS TOKEN:", session?.access_token);
       if (mounted) void loadCustomerProfile(session?.user ?? null);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        console.log("CUSTOMER ACCESS TOKEN:", session?.access_token);
         if (mounted) void loadCustomerProfile(session?.user ?? null);
       },
     );
@@ -341,6 +341,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.error("Unable to load customer notifications:", error);
     });
   }, [refreshNotifications]);
+
+  const refreshOrders = useCallback(async () => {
+    if (!authUser) {
+      setOrders([]);
+      return;
+    }
+    try {
+      setOrders(await fetchCustomerOrders());
+    } catch (error) {
+      console.error("Unable to load customer orders:", error);
+      setOrders([]);
+    }
+  }, [authUser]);
+
+  useEffect(() => {
+    void refreshOrders();
+  }, [refreshOrders]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {
@@ -609,80 +626,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const handlePlaceOrder = useCallback(
-    (orderData: Partial<Order>, onDone?: () => void) => {
-      const newOrder: Order = {
-        id: `ord-${Date.now()}`,
-        orderNumber: `SF-${Math.floor(1000 + Math.random() * 9000)}`,
-        createdAt: "Just now",
-        status: "preparing",
-        items: orderData.items || cartItems,
-        subtotal: orderData.subtotal || 0,
-        deliveryFee: orderData.deliveryFee || 0,
-        tax: orderData.tax || 0,
-        tip: orderData.tip || 0,
-        discount: orderData.discount || 0,
-        promoCode: orderData.promoCode,
-        total: orderData.total || 0,
-        deliveryAddress: orderData.deliveryAddress || user.savedAddresses[0],
-        paymentMethod: orderData.paymentMethod || user.savedPaymentMethods[0],
-        estimatedDeliveryTime:
-          orderData.estimatedDeliveryTime || "25 - 35 mins",
-        rider: MOCK_RIDER,
-        timeline: [
-          {
-            status: "placed",
-            label: "Order Placed",
-            description: "Received by Shamsiya kitchen",
-            timestamp: "Just now",
-            completed: true,
-            current: false,
-          },
-          {
-            status: "preparing",
-            label: "Kitchen Cooking",
-            description: "Chef is freshly preparing your feast in clay pots",
-            timestamp: "Now",
-            completed: true,
-            current: true,
-          },
-          {
-            status: "picked_up",
-            label: "Courier Pickup",
-            description: "Dispatched in heated thermal food box",
-            timestamp: "Est in 10 mins",
-            completed: false,
-            current: false,
-          },
-          {
-            status: "on_the_way",
-            label: "On the Way",
-            description: "Rider navigating to your doorstep",
-            timestamp: "Est in 20 mins",
-            completed: false,
-            current: false,
-          },
-          {
-            status: "delivered",
-            label: "Delivered",
-            description: "Delivered fresh & hot",
-            timestamp: "Est in 30 mins",
-            completed: false,
-            current: false,
-          },
-        ],
-        includeCutlery: orderData.includeCutlery ?? true,
-        deliveryNotes: orderData.deliveryNotes,
-      };
-
-      setOrders((prev) => [newOrder, ...prev]);
-      setActiveTrackingOrder(newOrder);
-      setCartItems([]);
-      onDone?.();
-    },
-    [cartItems, user],
-  );
-
   const handleMarkNotificationRead = useCallback(
     async (id: string) => {
       if (!authUser) return;
@@ -802,8 +745,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     notifications,
     recentScans,
     latestScanResult,
-    activeTrackingOrder,
-    setActiveTrackingOrder,
     isAuthenticated,
     setIsAuthenticated,
     authUser,
@@ -821,7 +762,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     cartTotalItems,
     handleToggleFavorite,
     handleScanCompleted,
-    handlePlaceOrder,
     unreadNotificationsCount,
     refreshNotifications,
     handleMarkNotificationRead,

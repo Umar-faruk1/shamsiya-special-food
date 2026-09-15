@@ -21,26 +21,24 @@ import { PrimaryButton, SecondaryButton } from "../components/Buttons";
 import { EmptyState } from "../components/CommonModalsAndCards";
 import { useApp } from "../context/AppContext";
 import { supabase } from "../api/supabase";
+import { createAddress, getAddresses } from "../api/addresses";
+import { Address } from "../types";
 import { validatePromotion } from "../api/promotions";
 import { PromotionValidation } from "../types";
 
-type CustomerAddress = {
-  id: string;
-  label: string;
-  address: string;
-  city: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  delivery_instructions: string | null;
-  is_default: boolean;
-};
-
 type PaymentMethodValue = "cash" | "mobile_money" | "card";
+type MobileMoneyProvider = "mtn" | "atl" | "vod";
 
 const paymentMethods: { value: PaymentMethodValue; label: string }[] = [
   { value: "cash", label: "Cash" },
   { value: "mobile_money", label: "Mobile Money" },
   { value: "card", label: "Card" },
+];
+
+const mobileMoneyProviders: { value: MobileMoneyProvider; label: string }[] = [
+  { value: "mtn", label: "MTN" },
+  { value: "atl", label: "AirtelTigo" },
+  { value: "vod", label: "Telecel" },
 ];
 
 const emptyAddressForm = {
@@ -59,8 +57,8 @@ function formatCurrency(value: number) {
 
 export default function CheckoutScreen() {
   const router = useRouter();
-  const { cartItems, authUser, handleClearCart } = useApp();
-  const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
+  const { cartItems, authUser, user, handleClearCart } = useApp();
+  const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState("");
   const [paymentMethod, setPaymentMethod] =
     useState<PaymentMethodValue>("cash");
@@ -76,6 +74,22 @@ export default function CheckoutScreen() {
     useState<PromotionValidation | null>(null);
   const [isValidatingPromotion, setIsValidatingPromotion] = useState(false);
   const [promotionError, setPromotionError] = useState<string | null>(null);
+  const [mobileMoneyPhone, setMobileMoneyPhone] = useState(user.phone || "");
+  const [mobileMoneyProvider, setMobileMoneyProvider] =
+    useState<MobileMoneyProvider>("mtn");
+  const [paymentInitiationError, setPaymentInitiationError] = useState<
+    string | null
+  >(null);
+  const [mobileMoneyOrderId, setMobileMoneyOrderId] = useState<string | null>(
+    null,
+  );
+  const [mobileMoneyOrderNumber, setMobileMoneyOrderNumber] = useState("");
+  const [mobileMoneyOrderTotal, setMobileMoneyOrderTotal] = useState(0);
+  const [isInitiatingPayment, setIsInitiatingPayment] = useState(false);
+
+  useEffect(() => {
+    if (!mobileMoneyPhone && user.phone) setMobileMoneyPhone(user.phone);
+  }, [mobileMoneyPhone, user.phone]);
 
   const loadAddresses = useCallback(async () => {
     if (!authUser) {
@@ -84,25 +98,17 @@ export default function CheckoutScreen() {
     }
     setIsLoadingAddresses(true);
     setAddressError(null);
-    const { data, error } = await supabase
-      .from("addresses")
-      .select(
-        "id,label,address,city,latitude,longitude,delivery_instructions,is_default",
-      )
-      .eq("user_id", authUser.id)
-      .order("is_default", { ascending: false })
-      .order("created_at", { ascending: false });
-    if (error) {
-      console.error("Unable to load customer addresses:", error);
-      setAddressError("We could not load your saved addresses.");
-    } else {
-      const nextAddresses = (data ?? []) as CustomerAddress[];
+    try {
+      const nextAddresses = await getAddresses();
       setAddresses(nextAddresses);
       setSelectedAddressId((current) =>
         nextAddresses.some((address) => address.id === current)
           ? current
-          : (nextAddresses[0]?.id ?? ""),
+          : (nextAddresses.find((address) => address.is_default)?.id ?? ""),
       );
+    } catch (error) {
+      console.error("Unable to load customer addresses:", error);
+      setAddressError("We could not load your saved addresses.");
     }
     setIsLoadingAddresses(false);
   }, [authUser]);
@@ -167,6 +173,102 @@ export default function CheckoutScreen() {
     setPromotionError(null);
   };
 
+  const friendlyPaymentError = (error: unknown) => {
+    const message = error instanceof Error ? error.message.toLowerCase() : "";
+    if (message.includes("already being processed")) {
+      return "This payment is already being processed. Please approve it on your phone.";
+    }
+    if (
+      message.includes("already been completed") ||
+      message.includes("successful")
+    ) {
+      return "This payment has already been completed.";
+    }
+    if (message.includes("phone"))
+      return "Enter a valid mobile money phone number.";
+    if (message.includes("provider"))
+      return "Select a valid mobile money provider.";
+    if (
+      message.includes("authentication") ||
+      message.includes("authorization")
+    ) {
+      return "Please sign in again before starting payment.";
+    }
+    if (message.includes("network") || message.includes("fetch")) {
+      return "Unable to reach the payment service. Please try again.";
+    }
+    return "We could not start mobile money payment. Please try again.";
+  };
+
+  const initiateMobileMoneyPayment = async (
+    orderId: string,
+    orderNumber: string,
+    orderTotal: number,
+  ) => {
+    const phone = mobileMoneyPhone.trim();
+    if (!phone) {
+      setPaymentInitiationError("Enter a mobile money phone number.");
+      return false;
+    }
+
+    setIsInitiatingPayment(true);
+    setPaymentInitiationError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke<{
+        success: boolean;
+        error?: string;
+        payment?: {
+          status?: string;
+          paystack_status?: string;
+          display_text?: string;
+          reference?: string | null;
+        };
+      }>("paystack-initiate", {
+        body: {
+          order_id: orderId,
+          phone,
+          provider: mobileMoneyProvider,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.success || !data.payment) {
+        throw new Error(data?.error || "Payment initiation failed.");
+      }
+
+      handleClearCart();
+      router.replace({
+        pathname: "/order-confirmation",
+        params: {
+          orderId,
+          orderNumber,
+          total: String(orderTotal),
+          paymentMethod: "mobile_money",
+          paymentStatus: data.payment.status || "processing",
+          paymentMessage:
+            data.payment.display_text ||
+            "Please approve the payment request on your phone.",
+        },
+      });
+      return true;
+    } catch (error) {
+      console.error("Unable to initiate mobile money payment:", error);
+      setPaymentInitiationError(
+        dataErrorMessage(error, friendlyPaymentError(error)),
+      );
+      return false;
+    } finally {
+      setIsInitiatingPayment(false);
+    }
+  };
+
+  const dataErrorMessage = (error: unknown, fallback: string) => {
+    const message = error instanceof Error ? error.message : "";
+    return message && !message.includes("FunctionsHttpError")
+      ? friendlyPaymentError(error)
+      : fallback;
+  };
+
   const updateAddressForm = (
     field: keyof typeof emptyAddressForm,
     value: string | boolean,
@@ -207,30 +309,15 @@ export default function CheckoutScreen() {
     }
     setIsSavingAddress(true);
     try {
-      const { data: insertedAddress, error } = await supabase
-        .from("addresses")
-        .insert({
-          user_id: authUser.id,
-          label: addressForm.label.trim(),
-          address: addressForm.address.trim(),
-          city: addressForm.city.trim() || null,
-          latitude,
-          longitude,
-          delivery_instructions:
-            addressForm.delivery_instructions.trim() || null,
-          is_default: addressForm.is_default,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      if (addressForm.is_default && insertedAddress) {
-        const { error: resetError } = await supabase
-          .from("addresses")
-          .update({ is_default: false })
-          .eq("user_id", authUser.id)
-          .neq("id", insertedAddress.id);
-        if (resetError) throw resetError;
-      }
+      await createAddress({
+        label: addressForm.label.trim(),
+        address: addressForm.address.trim(),
+        city: addressForm.city.trim() || null,
+        latitude,
+        longitude,
+        delivery_instructions: addressForm.delivery_instructions.trim() || null,
+        is_default: addressForm.is_default,
+      });
       setAddressForm(emptyAddressForm);
       setShowAddressForm(false);
       await loadAddresses();
@@ -260,6 +347,13 @@ export default function CheckoutScreen() {
     }
     if (!selectedAddress) {
       Alert.alert("Address required", "Select a delivery address first.");
+      return;
+    }
+    if (paymentMethod === "mobile_money" && !mobileMoneyPhone.trim()) {
+      Alert.alert(
+        "Mobile money phone required",
+        "Enter the phone number that should receive the payment request.",
+      );
       return;
     }
     if (
@@ -344,6 +438,17 @@ export default function CheckoutScreen() {
         !Number.isFinite(Number(result.total))
       )
         throw new Error("The order response was incomplete.");
+      if (paymentMethod === "mobile_money") {
+        setMobileMoneyOrderId(result.order_id);
+        setMobileMoneyOrderNumber(result.order_number);
+        setMobileMoneyOrderTotal(Number(result.total));
+        await initiateMobileMoneyPayment(
+          result.order_id,
+          result.order_number,
+          Number(result.total),
+        );
+        return;
+      }
       handleClearCart();
       router.replace({
         pathname: "/order-confirmation",
@@ -578,6 +683,59 @@ export default function CheckoutScreen() {
             </Pressable>
           ))}
         </View>
+        {paymentMethod === "mobile_money" ? (
+          <View className="gap-3 rounded-3xl border border-[#E86A17]/25 bg-white p-4">
+            <Text className="text-xs font-extrabold uppercase tracking-wider text-[#2D1810]">
+              Mobile Money Payment
+            </Text>
+            <TextInput
+              value={mobileMoneyPhone}
+              onChangeText={setMobileMoneyPhone}
+              placeholder="Mobile money phone number"
+              placeholderTextColor="#A9998F"
+              keyboardType="phone-pad"
+              className="rounded-xl border border-[#613D2D]/15 bg-[#FDFBF7] px-3 py-2.5 text-xs text-[#2D1810]"
+            />
+            <View className="flex-row gap-2">
+              {mobileMoneyProviders.map((provider) => (
+                <Pressable
+                  key={provider.value}
+                  onPress={() => setMobileMoneyProvider(provider.value)}
+                  className={`flex-1 items-center rounded-xl border px-2 py-2.5 ${mobileMoneyProvider === provider.value ? "border-[#E86A17] bg-[#FDFBF7]" : "border-[#613D2D]/12 bg-white"}`}
+                >
+                  <Text className="text-[11px] font-bold text-[#2D1810]">
+                    {provider.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text className="text-[11px] text-[#8E7668]">
+              You will receive a payment request on this phone after placing the
+              order.
+            </Text>
+          </View>
+        ) : null}
+        {paymentInitiationError ? (
+          <View className="gap-2 rounded-2xl bg-red-50 p-4">
+            <Text className="text-xs font-semibold text-red-800">
+              {paymentInitiationError}
+            </Text>
+            {mobileMoneyOrderId ? (
+              <SecondaryButton
+                loading={isInitiatingPayment}
+                onPress={() =>
+                  void initiateMobileMoneyPayment(
+                    mobileMoneyOrderId,
+                    mobileMoneyOrderNumber,
+                    mobileMoneyOrderTotal,
+                  )
+                }
+              >
+                Retry Mobile Money
+              </SecondaryButton>
+            ) : null}
+          </View>
+        ) : null}
         <View className="gap-3 rounded-3xl border border-[#613D2D]/12 bg-white p-4">
           <Text className="text-xs font-extrabold uppercase tracking-wider text-[#2D1810]">
             Promo Code
@@ -684,7 +842,9 @@ export default function CheckoutScreen() {
           size="lg"
           fullWidth
           loading={isSubmitting}
-          disabled={!selectedAddress || !cartItems.length}
+          disabled={
+            !selectedAddress || !cartItems.length || Boolean(mobileMoneyOrderId)
+          }
           onPress={() => void handlePlaceOrder()}
         >
           Place Order • {formatCurrency(total)}

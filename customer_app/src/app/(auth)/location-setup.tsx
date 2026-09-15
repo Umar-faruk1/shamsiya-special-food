@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -19,52 +19,72 @@ import {
   Building,
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
-import { UserAddress } from "../../types";
 import { PrimaryButton } from "../../components/Buttons";
+import { createAddress, getAddresses } from "../../api/addresses";
 import { useApp } from "../../context/AppContext";
 
 export default function LocationSetupScreen() {
   const router = useRouter();
-  const { handleAddAddress } = useApp();
+  const { showToast } = useApp();
 
   const [mode, setMode] = useState<"choose" | "manual">("choose");
   const [isDetecting, setIsDetecting] = useState(false);
 
-  const [street, setStreet] = useState("14 Independence Avenue");
-  const [area, setArea] = useState("Airport Residential Area");
-  const [city, setCity] = useState("Accra");
+  const [street, setStreet] = useState("");
+  const [area, setArea] = useState("");
+  const [city, setCity] = useState("");
   const [label, setLabel] = useState<"Home" | "Work" | "Other">("Home");
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  useEffect(() => {
+    let mounted = true;
+    void getAddresses()
+      .then((addresses) => {
+        if (mounted && addresses.length > 0) router.replace("/");
+      })
+      .catch((error) => {
+        console.error("Unable to check saved addresses:", error);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
+
   const handleUseCurrentLocation = () => {
-    setIsDetecting(true);
-    setTimeout(() => {
-      setIsDetecting(false);
-      setStreet("24 Ring Road Central, Suite 3B");
-      setArea("Cantonments");
-      setCity("Accra");
-      setMode("manual");
-    }, 850);
+    setMode("manual");
+    showToast("Current location is unavailable. Enter your address manually.");
   };
 
-  const handleSaveAddress = () => {
-    const newAddress: UserAddress = {
-      id: `addr-${Date.now()}`,
-      label,
-      recipientName: "Umar Faruk Mahama",
-      street: street || "14 Independence Avenue",
-      apartment: area,
-      city: city || "Accra",
-      postalCode: "GA-110",
-      phone: "+233 24 555 0192",
-      isDefault: true,
-    };
+  const handleSaveAddress = async () => {
+    const trimmedStreet = street.trim();
+    const trimmedArea = area.trim();
+    const trimmedCity = city.trim();
+    if (!trimmedStreet) {
+      showToast("Enter your delivery address to continue.");
+      return;
+    }
 
-    setSavedSuccess(true);
-    handleAddAddress(newAddress);
-    setTimeout(() => {
-      router.replace("/");
-    }, 700);
+    setIsDetecting(true);
+    try {
+      await createAddress({
+        label,
+        address: trimmedArea
+          ? `${trimmedStreet}, ${trimmedArea}`
+          : trimmedStreet,
+        city: trimmedCity || null,
+        latitude: null,
+        longitude: null,
+        delivery_instructions: null,
+        is_default: true,
+      });
+      setSavedSuccess(true);
+      setTimeout(() => router.replace("/"), 700);
+    } catch (error) {
+      console.error("Unable to save onboarding address:", error);
+      showToast("We could not save your address. Please try again.");
+    } finally {
+      setIsDetecting(false);
+    }
   };
 
   return (
@@ -124,7 +144,7 @@ export default function LocationSetupScreen() {
                   <View className="flex-1">
                     <Text className="text-sm font-extrabold text-white">
                       {isDetecting
-                        ? "Detecting GPS location..."
+                        ? "Saving address..."
                         : "Use Current Location"}
                     </Text>
                     <Text className="text-[11px] text-amber-200/90 font-medium">
@@ -202,7 +222,7 @@ export default function LocationSetupScreen() {
                 <TextInput
                   value={street}
                   onChangeText={setStreet}
-                  placeholder="e.g. 14 Independence Avenue"
+                  placeholder="Street name and house number"
                   placeholderTextColor="rgba(142,118,104,0.6)"
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-[#FDFBF7] border border-[#613D2D]/15 text-xs text-[#2D1810] font-medium"
                 />
@@ -216,7 +236,7 @@ export default function LocationSetupScreen() {
                 <TextInput
                   value={area}
                   onChangeText={setArea}
-                  placeholder="e.g. Airport Residential Area"
+                  placeholder="Area or landmark (optional)"
                   placeholderTextColor="rgba(142,118,104,0.6)"
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-[#FDFBF7] border border-[#613D2D]/15 text-xs text-[#2D1810] font-medium"
                 />
@@ -230,7 +250,7 @@ export default function LocationSetupScreen() {
                 <TextInput
                   value={city}
                   onChangeText={setCity}
-                  placeholder="e.g. Accra"
+                  placeholder="City (optional)"
                   placeholderTextColor="rgba(142,118,104,0.6)"
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-[#FDFBF7] border border-[#613D2D]/15 text-xs text-[#2D1810] font-medium"
                 />

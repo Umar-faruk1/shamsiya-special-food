@@ -240,6 +240,33 @@ export type PromotionValidation = {
   discount_amount: number;
 };
 
+export type SupportTicketStatus =
+  | "open"
+  | "in_progress"
+  | "resolved"
+  | "closed";
+
+export type SupportTicket = {
+  id: string;
+  user_id: string;
+  order_id: string | null;
+  subject: string;
+  description: string;
+  category: string | null;
+  status: SupportTicketStatus;
+  attachment_path: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CustomerOrderForSupport = {
+  id: string;
+  order_number: string;
+  status: string;
+  total: number | string;
+  created_at: string;
+};
+
 export interface PaymentMethod {
   id: string;
   type: "card" | "apple_pay" | "google_pay" | "cash" | "mobile_money";

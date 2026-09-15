@@ -115,7 +115,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 numberOfLines={1}
                 className="text-sm font-extrabold text-[#2D1810] max-w-[190px]"
               >
-                {currentAddress?.street || currentLocation || "Accra, Ghana"}
+                {currentAddress?.street ||
+                  currentLocation ||
+                  "Select an address"}
               </Text>
               <ChevronDown width={16} height={16} color="#8E7668" />
             </Pressable>
