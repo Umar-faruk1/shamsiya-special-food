@@ -1,12 +1,42 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export async function GET(request: Request) {
+async function requireAdmin() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) return null;
+
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!serviceKey || !url) return null;
+
+  const admin = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { data: profile, error: profileError } = await admin
+    .from("profiles")
+    .select("role, status")
+    .eq("id", user.id)
+    .maybeSingle();
+
   if (
-    request.headers
-      .get("cookie")
-      ?.includes("shamsiya_session=authenticated") !== true
-  )
+    profileError ||
+    profile?.role !== "admin" ||
+    profile.status !== "active"
+  ) {
+    return null;
+  }
+
+  return user;
+}
+
+export async function GET() {
+  if (!(await requireAdmin()))
     return NextResponse.json(
       { error: "You must be signed in as an administrator." },
       { status: 401 },
@@ -56,11 +86,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (
-    request.headers
-      .get("cookie")
-      ?.includes("shamsiya_session=authenticated") !== true
-  )
+  if (!(await requireAdmin()))
     return NextResponse.json(
       { error: "You must be signed in as an administrator." },
       { status: 401 },
@@ -106,16 +132,14 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   const userId = userData.user.id;
-  const { error: profileError } = await admin
-    .from("profiles")
-    .upsert({
-      id: userId,
-      full_name: body.full_name,
-      email: body.email,
-      phone: body.phone ?? null,
-      role: "rider",
-      status: "active",
-    });
+  const { error: profileError } = await admin.from("profiles").upsert({
+    id: userId,
+    full_name: body.full_name,
+    email: body.email,
+    phone: body.phone ?? null,
+    role: "rider",
+    status: "active",
+  });
   const { data: rider, error: riderError } = await admin
     .from("riders")
     .insert({

@@ -1,11 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = new Set([
-  "/login",
-  "/auth/callback",
-  "/auth/set-password",
-]);
+const PUBLIC_PATHS = new Set(["/auth/callback", "/auth/set-password"]);
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -38,10 +34,25 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  let user = null;
+  let error = null;
+
+  try {
+    const result = await supabase.auth.getUser();
+    user = result.data.user;
+    error = result.error;
+  } catch (authError) {
+    error = authError;
+  }
+
+  if (error) {
+    request.cookies
+      .getAll()
+      .filter(
+        ({ name }) => name.startsWith("sb-") && name.includes("auth-token"),
+      )
+      .forEach(({ name }) => response.cookies.delete(name));
+  }
 
   const isAuthenticated = !!user && !error;
 
